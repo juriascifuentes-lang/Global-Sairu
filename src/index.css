@@ -1,0 +1,81 @@
+@keyframes spin { to { transform: rotate(360deg) } }
+
+/* ── App theme tokens ── */
+:root {
+  --app-bg:      #060b14;
+  --card-bg:     #0d1526;
+  --sidebar-bg:  #080f1d;
+  --input-bg:    #0d1526;
+  --inner-bg:    #060b14;
+  --text-1:      #f1f5f9;
+  --text-2:      #e2e8f0;
+  --text-3:      #f8fafc;
+  --text-muted:  #94a3b8;
+  --text-dim:    #9ca3af;
+  --border-card:  rgba(148, 163, 184, 0.08);
+  --border-sub:   rgba(148, 163, 184, 0.07);
+  --border-input: rgba(148, 163, 184, 0.12);
+  --border-row:   rgba(148, 163, 184, 0.05);
+  --border-nav:   rgba(148, 163, 184, 0.07);
+  --hover-row:    rgba(148, 163, 184, 0.025);
+  --nav-hover:    rgba(148, 163, 184, 0.05);
+  --badge-buy-bg: rgba(59, 130, 246, 0.12);
+  --badge-sel-bg: rgba(245, 158, 11, 0.12);
+}
+
+:root.light {
+  --app-bg:      #eef2f7;
+  --card-bg:     #ffffff;
+  --sidebar-bg:  #f8fafc;
+  --input-bg:    #f1f5f9;
+  --inner-bg:    #e8edf5;
+  --text-1:      #0f172a;
+  --text-2:      #1e293b;
+  --text-3:      #0f172a;
+  --text-muted:  #64748b;
+  --text-dim:    #94a3b8;
+  --border-card:  rgba(0, 0, 0, 0.09);
+  --border-sub:   rgba(0, 0, 0, 0.07);
+  --border-input: rgba(0, 0, 0, 0.13);
+  --border-row:   rgba(0, 0, 0, 0.05);
+  --border-nav:   rgba(0, 0, 0, 0.08);
+  --hover-row:    rgba(0, 0, 0, 0.025);
+  --nav-hover:    rgba(0, 0, 0, 0.05);
+  --badge-buy-bg: rgba(59, 130, 246, 0.10);
+  --badge-sel-bg: rgba(245, 158, 11, 0.10);
+}
+
+/* ── Base reset ── */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Base color scheme for form controls ── */
+:root,
+:root input,
+:root select,
+:root textarea {
+  color-scheme: dark;
+}
+
+/* ── Light-mode color overrides for elements that can't use var() ── */
+:root.light,
+:root.light input,
+:root.light select,
+:root.light textarea {
+  color-scheme: light;
+}
