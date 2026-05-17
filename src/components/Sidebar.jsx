@@ -533,7 +533,7 @@ export function Sidebar({
         <nav style={{ display: "flex", flexDirection: "column", gap: "4px", width: "100%" }}>
           {[...navItems, ...(isAdmin ? [{ key: "ADMIN", label: "Usuarios" }] : [])].map((item) => {
             const isActive = activePage === item.key
-            const isLocked = item.key === "COPY_TRADING" && userLevel === 1
+            const isLocked = item.key === "COPY_TRADING" && userLevel === 1 && !isAdmin
             return (
               <button
                 key={item.key}
@@ -641,7 +641,7 @@ export function Sidebar({
       <nav style={{ display: "flex", flexDirection: "column", gap: "3px", marginBottom: "auto" }}>
         {[...navItems, ...(isAdmin ? [{ key: "ADMIN", label: "Usuarios" }] : [])].map((item) => {
           const isActive = activePage === item.key
-          const isLocked = item.key === "COPY_TRADING" && userLevel === 1
+          const isLocked = item.key === "COPY_TRADING" && userLevel === 1 && !isAdmin
           return (
             <button
               key={item.key}
