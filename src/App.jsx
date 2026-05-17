@@ -86,6 +86,7 @@ function App() {
   const [showPct, setShowPct] = useState(false)
   const [toast, setToast] = useState(null)
   const [form, setForm] = useState(defaultForm)
+  const [dashboardFilter, setDashboardFilter] = useState("all")
 
   useEffect(() => {
     if (emailVerified) {
@@ -454,34 +455,93 @@ function App() {
 
         {/* ─── DASHBOARD ─── */}
         {activePage === "DASHBOARD" && (() => {
+          const dashFilterNames = dashboardFilter === "all" ? null
+            : accounts
+                .filter(a => dashboardFilter === "challenge"
+                  ? (a.phase === "Fase 1" || a.phase === "Fase 2")
+                  : a.phase === "Fondeada")
+                .map(a => a.name)
+
+          const dashTrades = dashFilterNames
+            ? displayedTrades.filter(t => dashFilterNames.includes(t.account))
+            : displayedTrades
+
+          const dashWithdrawals = dashFilterNames
+            ? displayedWithdrawals.filter(w => dashFilterNames.includes(w.account))
+            : displayedWithdrawals
+
+          const dashAccounts = dashFilterNames
+            ? accounts.filter(a => dashFilterNames.includes(a.name))
+            : accountsWithTrades
+
+          const dashCapital = dashAccounts.length === 1
+            ? parseAccountSize(dashAccounts[0].size)
+            : dashAccounts.reduce((s, a) => s + parseAccountSize(a.size), 0)
+
+          const dashTotalProfit = dashTrades.reduce((s, t) => s + Number(t.profit || 0), 0)
+
           const totalPct = showPct
-            ? displayedTrades.reduce((s, t) => {
-                const size = accountSizeMap[t.account] || baseCapital
+            ? dashTrades.reduce((s, t) => {
+                const size = accountSizeMap[t.account] || dashCapital
                 return size > 0 ? s + (Number(t.profit || 0) / size) * 100 : s
               }, 0)
             : null
           const equityLabel = showPct && totalPct !== null
             ? `${totalPct >= 0 ? "+" : ""}${totalPct.toFixed(2)}%`
-            : `${totalProfit >= 0 ? "+" : ""}$${totalProfit.toFixed(2)}`
-          const equityColor = totalProfit >= 0 ? "#10b981" : "#f87171"
+            : `${dashTotalProfit >= 0 ? "+" : ""}$${dashTotalProfit.toFixed(2)}`
+          const equityColor = dashTotalProfit >= 0 ? "#10b981" : "#f87171"
+
+          const filterOptions = [
+            { key: "all", label: "Todas" },
+            { key: "challenge", label: "Challenge" },
+            { key: "funded", label: "Fondeadas" },
+          ]
 
           return (
             <>
               {/* ── Header ── */}
-              <div style={{ marginBottom: "0" }}>
-                <p style={{ margin: 0, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.18em", fontSize: "10px" }}>
-                  Resumen de rendimiento
-                </p>
-                <h1 style={{ margin: "8px 0 6px", fontSize: "36px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.02em" }}>
-                  Hola, {userName.split(/\d/)[0]}
-                </h1>
-                <p style={{ margin: 0, color: "var(--text-muted)", maxWidth: "600px", fontSize: "14px", lineHeight: "1.6" }}>
-                  Monitorea tus resultados en tiempo real y lleva control visual de tus entradas, ganancias y métricas clave.
-                </p>
+              <div style={{ marginBottom: "0", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
+                <div>
+                  <p style={{ margin: 0, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.18em", fontSize: "10px" }}>
+                    Resumen de rendimiento
+                  </p>
+                  <h1 style={{ margin: "8px 0 6px", fontSize: "36px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.02em" }}>
+                    Hola, {userName.split(/\d/)[0]}
+                  </h1>
+                  <p style={{ margin: 0, color: "var(--text-muted)", maxWidth: "600px", fontSize: "14px", lineHeight: "1.6" }}>
+                    Monitorea tus resultados en tiempo real y lleva control visual de tus entradas, ganancias y métricas clave.
+                  </p>
+                </div>
+
+                {/* Filtro de cuentas */}
+                <div style={{ display: "flex", gap: "4px", background: "var(--inner-bg)", borderRadius: "14px", padding: "4px", alignSelf: "flex-start", marginTop: "8px" }}>
+                  {filterOptions.map(f => (
+                    <button
+                      key={f.key}
+                      onClick={() => setDashboardFilter(f.key)}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: "10px",
+                        border: "none",
+                        background: dashboardFilter === f.key ? "var(--card-bg)" : "transparent",
+                        color: dashboardFilter === f.key ? "var(--text-1)" : "var(--text-muted)",
+                        fontWeight: dashboardFilter === f.key ? "700" : "500",
+                        fontSize: "12.5px",
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                        fontFamily: "Inter, Arial, sans-serif",
+                        boxShadow: dashboardFilter === f.key ? "0 1px 4px rgba(0,0,0,0.18)" : "none",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* ── Statistics ── */}
-              <Statistics trades={displayedTrades} showPct={showPct} baseCapital={baseCapital} accountSizeMap={accountSizeMap} />
+              <Statistics trades={dashTrades} showPct={showPct} baseCapital={dashCapital} accountSizeMap={accountSizeMap} />
 
               {/* ── Equity Curve ── */}
               <div style={{ background: "var(--card-bg)", borderRadius: "20px", padding: "20px 22px", border: "1px solid var(--border-card)", marginTop: "16px" }}>
@@ -495,20 +555,20 @@ function App() {
                   <span style={{ color: equityColor, fontWeight: "800", fontSize: "22px", letterSpacing: "-0.02em" }}>{equityLabel}</span>
                 </div>
                 <div style={{ height: "260px", display: "flex", flexDirection: "column" }}>
-                  <EquityCurve trades={displayedTrades} showPct={showPct} baseCapital={baseCapital} accountSizeMap={accountSizeMap} />
+                  <EquityCurve trades={dashTrades} showPct={showPct} baseCapital={dashCapital} accountSizeMap={accountSizeMap} />
                 </div>
               </div>
 
               {/* ── Calendario + Trades recientes ── */}
               <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "16px", marginTop: "16px" }}>
-                <CalendarPanel trades={displayedTrades} showPct={showPct} accountSizeMap={accountSizeMap} />
-                <RecentTradesWidget trades={displayedTrades} onNavigate={setActivePage} showPct={showPct} accountSizeMap={accountSizeMap} />
+                <CalendarPanel trades={dashTrades} showPct={showPct} accountSizeMap={accountSizeMap} />
+                <RecentTradesWidget trades={dashTrades} onNavigate={setActivePage} showPct={showPct} accountSizeMap={accountSizeMap} />
               </div>
 
               {/* ── ROI + Retiros ── */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
-                <AccountROIWidget accounts={accounts} withdrawals={displayedWithdrawals} onNavigate={setActivePage} />
-                <LastWithdrawalsWidget withdrawals={displayedWithdrawals} onNavigate={setActivePage} />
+                <AccountROIWidget accounts={dashAccounts} withdrawals={dashWithdrawals} onNavigate={setActivePage} />
+                <LastWithdrawalsWidget withdrawals={dashWithdrawals} onNavigate={setActivePage} />
               </div>
             </>
           )
