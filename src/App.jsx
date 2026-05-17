@@ -69,7 +69,9 @@ function PageHeader({ sup, title, sub }) {
 function App() {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
-  const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [passwordRecovery, setPasswordRecovery] = useState(() =>
+    window.location.hash.includes("type=recovery")
+  )
   const [emailVerified, setEmailVerified] = useState(() => {
     const hash = window.location.hash
     const params = new URLSearchParams(window.location.search)
@@ -95,6 +97,8 @@ function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         setPasswordRecovery(true)
+        setSession(session)
+      } else if (event === "SIGNED_IN" && window.location.hash.includes("type=recovery")) {
         setSession(session)
       } else {
         setPasswordRecovery(false)

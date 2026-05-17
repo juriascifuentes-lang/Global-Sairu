@@ -35,15 +35,39 @@ export function LoginScreen() {
 
   const handleForgotPassword = async (e) => {
     e.preventDefault()
-    setLoading(true)
     setError("")
+
+    const LIMIT = 3
+    const WINDOW_MS = 10 * 60 * 1000
+    const key = `pwd_reset_${email.toLowerCase()}`
+    const now = Date.now()
+    const stored = JSON.parse(localStorage.getItem(key) || "null")
+
+    if (stored && now - stored.first < WINDOW_MS) {
+      if (stored.count >= LIMIT) {
+        const remaining = Math.ceil((WINDOW_MS - (now - stored.first)) / 60000)
+        setError(`Alcanzaste el límite de ${LIMIT} intentos. Espera ${remaining} minuto${remaining !== 1 ? "s" : ""} para intentar de nuevo.`)
+        return
+      }
+      localStorage.setItem(key, JSON.stringify({ first: stored.first, count: stored.count + 1 }))
+    } else {
+      localStorage.setItem(key, JSON.stringify({ first: now, count: 1 }))
+    }
+
+    const currentStored = JSON.parse(localStorage.getItem(key))
+    const remaining = LIMIT - currentStored.count
+    setLoading(true)
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: window.location.origin,
     })
     if (error) {
-      setError(error.message || "No se pudo enviar el correo. Verifica el email ingresado.")
+      if (error.message?.toLowerCase().includes("rate limit") || error.message?.toLowerCase().includes("too many")) {
+        setError("Demasiados intentos. Espera unos minutos antes de solicitar otro enlace.")
+      } else {
+        setError("No se pudo enviar el correo. Verifica el email ingresado.")
+      }
     } else {
-      setSuccess("Te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada.")
+      setSuccess(`Te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada.${remaining > 0 ? ` (${remaining} intento${remaining !== 1 ? "s" : ""} restante${remaining !== 1 ? "s" : ""})` : ""}`)
     }
     setLoading(false)
   }
