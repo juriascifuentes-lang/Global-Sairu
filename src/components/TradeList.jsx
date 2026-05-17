@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef, useEffect, useMemo } from "react"
 import { List } from "react-window"
 
 const searchIcon = (
@@ -360,9 +360,37 @@ export function TradeList({
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState("ALL")
   const [viewingTrade, setViewingTrade] = useState(null)
+  const [selectedSymbols, setSelectedSymbols] = useState(new Set())
+  const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false)
+  const symbolDropdownRef = useRef(null)
+
+  const uniqueSymbols = useMemo(() =>
+    [...new Set(trades.map((t) => t.symbol).filter(Boolean))].sort(),
+    [trades]
+  )
+
+  useEffect(() => {
+    if (!symbolDropdownOpen) return
+    const handler = (e) => {
+      if (symbolDropdownRef.current && !symbolDropdownRef.current.contains(e.target))
+        setSymbolDropdownOpen(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [symbolDropdownOpen])
+
+  const toggleSymbol = (symbol) => {
+    setSelectedSymbols((prev) => {
+      const next = new Set(prev)
+      if (next.has(symbol)) next.delete(symbol)
+      else next.add(symbol)
+      return next
+    })
+  }
 
   const filteredTrades = trades
     .filter((t) => filter === "ALL" || t.type === filter)
+    .filter((t) => selectedSymbols.size === 0 || selectedSymbols.has(t.symbol))
     .filter((t) => {
       if (!search) return true
       const q = search.toLowerCase()
@@ -417,14 +445,97 @@ export function TradeList({
       </div>
 
       {/* Filters + count */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 22px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 22px", flexWrap: "wrap", gap: "10px" }}>
         <span style={{ color: "var(--text-muted)", fontSize: "13px" }}>
           {filteredTrades.length} operaciones
         </span>
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
           <button onClick={() => setFilter("ALL")} style={pillBtn(filter === "ALL", "#10b981", "rgba(16,185,129,0.12)")}>Todos</button>
           <button onClick={() => setFilter("BUY")} style={pillBtn(filter === "BUY", "#60a5fa", "rgba(59,130,246,0.12)")}>LONG</button>
           <button onClick={() => setFilter("SELL")} style={pillBtn(filter === "SELL", "#f87171", "rgba(239,68,68,0.12)")}>SHORT</button>
+
+          {/* Filtro por par/activo */}
+          <div ref={symbolDropdownRef} style={{ position: "relative" }}>
+            <button
+              onClick={() => setSymbolDropdownOpen((v) => !v)}
+              style={{
+                ...pillBtn(selectedSymbols.size > 0, "#f59e0b", "rgba(245,158,11,0.12)"),
+                display: "flex", alignItems: "center", gap: "6px",
+              }}
+            >
+              Activos
+              {selectedSymbols.size > 0 && (
+                <span style={{
+                  background: "#f59e0b", color: "#000", borderRadius: "999px",
+                  fontSize: "10px", fontWeight: "800", padding: "1px 6px", lineHeight: 1.4,
+                }}>
+                  {selectedSymbols.size}
+                </span>
+              )}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: symbolDropdownOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+
+            {symbolDropdownOpen && (
+              <div style={{
+                position: "absolute", right: 0, top: "calc(100% + 6px)",
+                background: "var(--card-bg)", border: "1px solid var(--border-input)",
+                borderRadius: "14px", zIndex: 50, minWidth: "180px",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.35)", overflow: "hidden",
+              }}>
+                {selectedSymbols.size > 0 && (
+                  <button
+                    onClick={() => setSelectedSymbols(new Set())}
+                    style={{
+                      width: "100%", padding: "10px 14px", background: "rgba(245,158,11,0.08)",
+                      border: "none", borderBottom: "1px solid var(--border-input)",
+                      color: "#f59e0b", fontWeight: "700", fontSize: "12px",
+                      cursor: "pointer", textAlign: "left", fontFamily: "Inter, Arial, sans-serif",
+                    }}
+                  >
+                    Limpiar filtro ({selectedSymbols.size})
+                  </button>
+                )}
+                <div style={{ maxHeight: "260px", overflowY: "auto" }}>
+                  {uniqueSymbols.map((sym) => {
+                    const active = selectedSymbols.has(sym)
+                    return (
+                      <button
+                        key={sym}
+                        onClick={() => toggleSymbol(sym)}
+                        style={{
+                          width: "100%", display: "flex", alignItems: "center", gap: "10px",
+                          padding: "9px 14px", border: "none",
+                          background: active ? "rgba(245,158,11,0.08)" : "transparent",
+                          color: active ? "#f59e0b" : "var(--text-1)",
+                          fontWeight: active ? "700" : "500", fontSize: "13px",
+                          cursor: "pointer", textAlign: "left", fontFamily: "Inter, Arial, sans-serif",
+                          borderBottom: "1px solid rgba(148,163,184,0.05)",
+                          transition: "background 0.1s",
+                        }}
+                      >
+                        <span style={{
+                          width: "14px", height: "14px", borderRadius: "4px", flexShrink: 0,
+                          border: `1.5px solid ${active ? "#f59e0b" : "rgba(148,163,184,0.3)"}`,
+                          background: active ? "#f59e0b" : "transparent",
+                          display: "grid", placeItems: "center",
+                        }}>
+                          {active && (
+                            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                          )}
+                        </span>
+                        {sym}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
