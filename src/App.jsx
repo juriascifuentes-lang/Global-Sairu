@@ -277,6 +277,7 @@ function App() {
         onToggleTheme={toggleTheme}
         onLogout={handleLogout}
         isAdmin={profile.is_admin}
+        userLevel={profile.level || 1}
         showPct={showPct}
         onTogglePct={(val) => setShowPct(val)}
       />

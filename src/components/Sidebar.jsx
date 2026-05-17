@@ -126,6 +126,13 @@ const navItems = [
   { key: "CONNECT_MT5", label: "Conectar MT5" },
 ]
 
+const lockIcon = (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2"/>
+    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </svg>
+)
+
 const logoutIcon = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -466,6 +473,7 @@ export function Sidebar({
   onToggleTheme,
   onLogout,
   isAdmin = false,
+  userLevel = 1,
   showPct = false,
   onTogglePct,
 }) {
@@ -525,16 +533,19 @@ export function Sidebar({
         <nav style={{ display: "flex", flexDirection: "column", gap: "4px", width: "100%" }}>
           {[...navItems, ...(isAdmin ? [{ key: "ADMIN", label: "Usuarios" }] : [])].map((item) => {
             const isActive = activePage === item.key
+            const isLocked = item.key === "COPY_TRADING" && userLevel === 1
             return (
               <button
                 key={item.key}
-                onClick={() => onNavigate(item.key)}
-                title={item.label}
+                onClick={() => !isLocked && onNavigate(item.key)}
+                title={isLocked ? `${item.label} (Nivel 2 requerido)` : item.label}
                 style={{
                   width: "100%", padding: "10px", borderRadius: "10px", border: "none",
                   background: isActive ? "rgba(16,185,129,0.11)" : "transparent",
                   color: isActive ? "#10b981" : "var(--text-muted)",
-                  cursor: "pointer", display: "grid", placeItems: "center",
+                  cursor: isLocked ? "not-allowed" : "pointer",
+                  display: "grid", placeItems: "center",
+                  opacity: isLocked ? 0.45 : 1,
                 }}
               >
                 {navIcons[item.key]}
@@ -630,10 +641,12 @@ export function Sidebar({
       <nav style={{ display: "flex", flexDirection: "column", gap: "3px", marginBottom: "auto" }}>
         {[...navItems, ...(isAdmin ? [{ key: "ADMIN", label: "Usuarios" }] : [])].map((item) => {
           const isActive = activePage === item.key
+          const isLocked = item.key === "COPY_TRADING" && userLevel === 1
           return (
             <button
               key={item.key}
-              onClick={() => onNavigate(item.key)}
+              onClick={() => !isLocked && onNavigate(item.key)}
+              title={isLocked ? "Requiere Nivel 2" : undefined}
               style={{
                 width: "100%",
                 textAlign: "left",
@@ -642,16 +655,17 @@ export function Sidebar({
                 border: "none",
                 background: isActive ? "rgba(16, 185, 129, 0.11)" : "transparent",
                 color: isActive ? "#10b981" : "var(--text-muted)",
-                cursor: "pointer",
+                cursor: isLocked ? "not-allowed" : "pointer",
                 fontSize: "13.5px",
                 fontWeight: isActive ? "600" : "500",
                 display: "flex",
                 alignItems: "center",
                 gap: "11px",
                 transition: "background 0.12s, color 0.12s",
+                opacity: isLocked ? 0.45 : 1,
               }}
               onMouseEnter={(e) => {
-                if (!isActive) {
+                if (!isActive && !isLocked) {
                   e.currentTarget.style.background = "var(--nav-hover)"
                 }
               }}
@@ -663,6 +677,11 @@ export function Sidebar({
                 {navIcons[item.key]}
               </span>
               {item.label}
+              {isLocked && (
+                <span style={{ marginLeft: "auto", opacity: 0.7 }}>
+                  {lockIcon}
+                </span>
+              )}
             </button>
           )
         })}
