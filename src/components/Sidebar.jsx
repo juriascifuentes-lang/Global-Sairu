@@ -143,6 +143,7 @@ const logoutIcon = (
 
 function AccountSelector({ accounts, activeAccountId, onSelectAccount, onRefresh, showPct, onTogglePct }) {
   const [open, setOpen] = useState(false)
+  const [spinning, setSpinning] = useState(false)
 
   const activeAccount = accounts.find((a) => String(a.id) === activeAccountId)
   const activeName = activeAccount ? activeAccount.name : "Todas las cuentas"
@@ -152,8 +153,16 @@ function AccountSelector({ accounts, activeAccountId, onSelectAccount, onRefresh
     setOpen(false)
   }
 
+  const handleRefresh = async () => {
+    if (spinning) return
+    setSpinning(true)
+    await onRefresh()
+    setTimeout(() => setSpinning(false), 600)
+  }
+
   return (
     <div style={{ marginBottom: "28px", position: "relative" }}>
+      <style>{`@keyframes spin-refresh { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       {/* Label row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingLeft: "6px", marginBottom: "8px", gap: "8px" }}>
         <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: "600" }}>
@@ -161,11 +170,13 @@ function AccountSelector({ accounts, activeAccountId, onSelectAccount, onRefresh
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <button
-            onClick={onRefresh}
-            title="Recargar"
-            style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", padding: "6px", borderRadius: "10px" }}
+            onClick={handleRefresh}
+            title="Recargar datos"
+            style={{ background: "none", border: "none", color: spinning ? "#10b981" : "var(--text-muted)", cursor: spinning ? "default" : "pointer", display: "flex", padding: "6px", borderRadius: "10px", transition: "color 0.15s" }}
           >
-            {refreshIcon}
+            <span style={{ display: "inline-flex", animation: spinning ? "spin-refresh 0.7s linear infinite" : "none" }}>
+              {refreshIcon}
+            </span>
           </button>
         </div>
       </div>

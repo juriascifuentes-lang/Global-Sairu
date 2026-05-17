@@ -79,7 +79,7 @@ function App() {
   })
   const [profile, setProfile] = useState(null)
   const [profileError, setProfileError] = useState(false)
-  const [activePage, setActivePage] = useState("DASHBOARD")
+  const [activePage, setActivePage] = useState(() => localStorage.getItem("activePage") || "DASHBOARD")
   const [isEditing, setIsEditing] = useState(false)
   const [showTradeForm, setShowTradeForm] = useState(false)
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark")
@@ -123,6 +123,10 @@ function App() {
         }
       })
   }, [session?.user?.id])
+
+  useEffect(() => {
+    localStorage.setItem("activePage", activePage)
+  }, [activePage])
 
   useEffect(() => {
     document.documentElement.className = theme
