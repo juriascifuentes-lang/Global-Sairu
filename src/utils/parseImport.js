@@ -149,8 +149,16 @@ export const sliceUntilSectionEnd = (rows) => {
   return dataRows
 }
 
+const formatXlsxCell = (cell) => {
+  if (cell instanceof Date) {
+    const p = (n) => String(n).padStart(2, "0")
+    return `${p(cell.getDate())}/${p(cell.getMonth() + 1)}/${cell.getFullYear()} ${p(cell.getHours())}:${p(cell.getMinutes())}:${p(cell.getSeconds())}`
+  }
+  return normalizeCell(String(cell ?? ""))
+}
+
 export const parseXlsxFile = (arrayBuffer) => {
-  const workbook = XLSX.read(arrayBuffer, { type: "array" })
+  const workbook = XLSX.read(arrayBuffer, { type: "array", cellDates: true })
   const firstSheet = workbook.SheetNames[0]
   const sheet = workbook.Sheets[firstSheet]
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" })
@@ -162,7 +170,7 @@ export const parseXlsxFile = (arrayBuffer) => {
   const headerRowIndex = findHeaderRow(rows.slice(0, Math.min(rows.length, 8)))
   const headers = rows[headerRowIndex].map((cell) => normalizeHeader(String(cell || "")))
   const dataRows = sliceUntilSectionEnd(rows.slice(headerRowIndex + 1)).map((row) =>
-    row.map((cell) => normalizeCell(String(cell || "")))
+    row.map(formatXlsxCell)
   )
   return { headers, dataRows }
 }
