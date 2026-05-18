@@ -567,7 +567,7 @@ function App() {
             const monthProfit = monthTrades.reduce((s, t) => s + Number(t.profit || 0), 0)
             const wins = dashTrades.filter(t => Number(t.profit) > 0).length
             const winRate = dashTrades.length > 0 ? (wins / dashTrades.length) * 100 : 0
-            const recentTrades = [...dashTrades].slice(0, 6)
+            const recentTrades = [...dashTrades].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6)
 
             return (
               <>
