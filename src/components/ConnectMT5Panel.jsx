@@ -61,6 +61,7 @@ const ntSteps = [
 const platforms = [
   { key: "MT5",         label: "MetaTrader 5",  logo: "/MT5.png" },
   { key: "NINJATRADER", label: "NinjaTrader 8", logo: "/NINJATRADER.png" },
+  { key: "TRADOVATE",   label: "Tradovate",     logo: "/TRADOVATE.png" },
 ]
 
 function StepList({ steps }) {
@@ -399,6 +400,54 @@ export function ConnectMT5Panel({ accounts, userId }) {
             </div>
           </div>
         </>
+      )}
+
+      {platform === "TRADOVATE" && (
+        <div style={cardStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "18px" }}>
+            <img src="/TRADOVATE.png" alt="Tradovate" style={{ width: "36px", height: "36px", objectFit: "contain" }} />
+            <div>
+              <h2 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "var(--text-1)" }}>
+                Tradovate — Próximamente
+              </h2>
+              <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--text-muted)" }}>
+                La integración con Tradovate está en desarrollo
+              </p>
+            </div>
+          </div>
+
+          <div style={{
+            padding: "20px",
+            background: "rgba(148,163,184,0.04)",
+            border: "1px solid rgba(148,163,184,0.1)",
+            borderRadius: "14px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--text-muted)", lineHeight: "1.65" }}>
+              Tradovate ofrece una API REST que permite exportar el historial de trades. Pronto podrás conectar tu cuenta directamente y sincronizar futuros automáticamente.
+            </p>
+            <p style={{ margin: 0, fontSize: "13px", color: "var(--text-muted)", lineHeight: "1.65" }}>
+              Mientras tanto, puedes registrar tus trades de Tradovate manualmente desde la sección{" "}
+              <span style={{ color: "var(--text-1)", fontWeight: "600" }}>Trades → Agregar trade</span>.
+            </p>
+          </div>
+
+          <div style={{
+            marginTop: "16px", padding: "14px 16px",
+            background: "rgba(16,185,129,0.04)", border: "1px solid rgba(16,185,129,0.15)",
+            borderRadius: "12px", fontSize: "12px", color: "var(--text-muted)",
+            display: "flex", gap: "10px", alignItems: "flex-start",
+          }}>
+            <svg style={{ color: "#10b981", flexShrink: 0, marginTop: "1px" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>
+              Plataformas soportadas actualmente: <span style={{ color: "var(--text-1)", fontWeight: "600" }}>MetaTrader 5</span> y <span style={{ color: "var(--text-1)", fontWeight: "600" }}>NinjaTrader 8</span>.
+            </span>
+          </div>
+        </div>
       )}
 
       {platform === "NINJATRADER" && (
