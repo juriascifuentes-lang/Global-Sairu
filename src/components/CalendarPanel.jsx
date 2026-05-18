@@ -409,7 +409,7 @@ function DayModal({ dateLabel, dayTrades, onClose }) {
   )
 }
 
-export function CalendarPanel({ trades, showPct = false, accountSizeMap = {} }) {
+export function CalendarPanel({ trades, showPct = false, accountSizeMap = {}, isMobile = false }) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState(null)
 
@@ -489,8 +489,8 @@ export function CalendarPanel({ trades, showPct = false, accountSizeMap = {} }) 
   }
 
   const dayCellStyle = (profit, clickable) => ({
-    minHeight: "62px",
-    borderRadius: "12px",
+    minHeight: isMobile ? "42px" : "62px",
+    borderRadius: isMobile ? "8px" : "12px",
     border: "1px solid var(--border-sub)",
     background:
       profit === null
@@ -500,7 +500,7 @@ export function CalendarPanel({ trades, showPct = false, accountSizeMap = {} }) 
         : profit < 0
         ? "rgba(248, 113, 113, 0.07)"
         : "rgba(148, 163, 184, 0.03)",
-    padding: "7px 8px",
+    padding: isMobile ? "4px 3px" : "7px 8px",
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
@@ -539,7 +539,7 @@ export function CalendarPanel({ trades, showPct = false, accountSizeMap = {} }) 
       </div>
 
       {/* Column headers */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr)) 76px", gap: "6px", marginBottom: "6px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(7, minmax(0, 1fr)) ${isMobile ? "48px" : "76px"}`, gap: isMobile ? "3px" : "6px", marginBottom: "6px" }}>
         {weekdays.map((d) => (
           <div key={d} style={{ color: "var(--text-muted)", fontSize: "10px", fontWeight: "700", textAlign: "center", letterSpacing: "0.06em" }}>
             {d}
@@ -551,9 +551,9 @@ export function CalendarPanel({ trades, showPct = false, accountSizeMap = {} }) 
       </div>
 
       {/* Week rows */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? "3px" : "6px" }}>
         {weeks.map((week, wi) => (
-          <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr)) 76px", gap: "6px", alignItems: "stretch" }}>
+          <div key={wi} style={{ display: "grid", gridTemplateColumns: `repeat(7, minmax(0, 1fr)) ${isMobile ? "48px" : "76px"}`, gap: isMobile ? "3px" : "6px", alignItems: "stretch" }}>
             {week.cells.map((cell, ci) =>
               cell ? (
                 <div
@@ -567,9 +567,9 @@ export function CalendarPanel({ trades, showPct = false, accountSizeMap = {} }) 
                     e.currentTarget.style.borderColor = "var(--border-sub)"
                   }}
                 >
-                  <div style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)" }}>{cell.day}</div>
+                  <div style={{ fontSize: isMobile ? "9px" : "11px", fontWeight: "600", color: "var(--text-muted)" }}>{cell.day}</div>
                   {cell.profit !== null && (
-                    <div style={{ fontSize: "13px", fontWeight: "700", color: cell.profit >= 0 ? "#10b981" : "#f87171", lineHeight: 1 }}>
+                    <div style={{ fontSize: isMobile ? "9px" : "13px", fontWeight: "700", color: cell.profit >= 0 ? "#10b981" : "#f87171", lineHeight: 1 }}>
                       {fmtAmt(cell.profit, cell.pct)}
                     </div>
                   )}
@@ -602,18 +602,20 @@ export function CalendarPanel({ trades, showPct = false, accountSizeMap = {} }) 
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "3px",
-                padding: "6px 4px",
-                minHeight: "62px",
+                padding: isMobile ? "3px 2px" : "6px 4px",
+                minHeight: isMobile ? "42px" : "62px",
               }}
             >
               {week.weekTotal !== null ? (
                 <>
-                  <div style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", lineHeight: 1 }}>
-                    Total
-                  </div>
+                  {!isMobile && (
+                    <div style={{ fontSize: "8px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.08em", lineHeight: 1 }}>
+                      Total
+                    </div>
+                  )}
                   <div
                     style={{
-                      fontSize: "13px",
+                      fontSize: isMobile ? "10px" : "13px",
                       fontWeight: "800",
                       color: week.weekTotal >= 0 ? "#10b981" : "#f87171",
                       textAlign: "center",
