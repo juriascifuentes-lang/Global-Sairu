@@ -153,11 +153,9 @@ function AccountSelector({ accounts, activeAccountId, onSelectAccount, onRefresh
     setOpen(false)
   }
 
-  const handleRefresh = async () => {
-    if (spinning) return
+  const handleRefresh = () => {
     setSpinning(true)
-    await onRefresh()
-    setTimeout(() => setSpinning(false), 600)
+    window.location.reload()
   }
 
   return (
