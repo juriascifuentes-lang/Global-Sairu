@@ -123,7 +123,7 @@ const navItems = [
   { key: "IMPORT", label: "Importar" },
   { key: "ACCOUNTS", label: "Cuentas" },
   { key: "COPY_TRADING", label: "Copiador" },
-  { key: "CONNECT_MT5", label: "Conectar MT5" },
+  { key: "CONNECT_MT5", label: "Conectar" },
 ]
 
 const lockIcon = (
