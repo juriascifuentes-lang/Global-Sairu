@@ -46,6 +46,13 @@ export function AdminPanel() {
     }
   }
 
+  const deleteUser = async (id, email) => {
+    if (await showConfirm(`¿Eliminar completamente a ${email}? Se borrarán todos sus datos y tendrá que registrarse de nuevo para acceder.`, { title: "Eliminar usuario", confirmLabel: "Eliminar", danger: true })) {
+      await supabase.rpc("delete_user_completely", { target_user_id: id })
+      loadUsers()
+    }
+  }
+
   const formatDate = (d) =>
     new Date(d).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" })
 
@@ -174,6 +181,12 @@ export function AdminPanel() {
                       style={{ padding: "7px 12px", borderRadius: "10px", border: "1px solid rgba(248,113,113,0.3)", background: "transparent", color: "#f87171", fontWeight: "600", fontSize: "12px", cursor: "pointer" }}
                     >
                       Revocar
+                    </button>
+                    <button
+                      onClick={() => deleteUser(user.id, user.email)}
+                      style={{ padding: "7px 12px", borderRadius: "10px", border: "none", background: "rgba(248,113,113,0.12)", color: "#f87171", fontWeight: "700", fontSize: "12px", cursor: "pointer" }}
+                    >
+                      Eliminar
                     </button>
                   </div>
                 )}
