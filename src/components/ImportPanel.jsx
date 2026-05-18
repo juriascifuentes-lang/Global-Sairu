@@ -134,7 +134,12 @@ export function ImportPanel({ accounts, onImportTrades, onNavigate }) {
       .sort((a, b) => {
         const { date: da, time: ta } = parseDateString(a.rawTime)
         const { date: db, time: tb } = parseDateString(b.rawTime)
-        return `${da} ${ta}`.localeCompare(`${db} ${tb}`)
+        const cmp = `${da} ${ta}`.localeCompare(`${db} ${tb}`)
+        if (cmp !== 0) return cmp
+        // Mismo timestamp: entradas antes que salidas
+        if (a.isEntry && !b.isEntry) return -1
+        if (!a.isEntry && b.isEntry) return 1
+        return 0
       })
 
     // FIFO queue por símbolo: { type, fifo: [{price, qty}], firstTime, totalPnl, exitQty }
@@ -168,8 +173,8 @@ export function ImportPanel({ accounts, onImportTrades, onNavigate }) {
           if (entry.qty <= 0) pos.fifo.shift()
         }
 
-        // Posición flat: "-" o cola vacía
-        const isFlat = exec.posicion === "-" || exec.posicion === "" || pos.fifo.length === 0
+        // Flat cuando la cola FIFO está vacía (todos los contratos emparejados)
+        const isFlat = pos.fifo.length === 0
         if (isFlat) {
           const { date, time } = parseDateString(pos.firstTime)
           trades.push({
