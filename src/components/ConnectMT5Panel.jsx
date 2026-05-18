@@ -55,7 +55,7 @@ export function ConnectMT5Panel({ accounts, userId }) {
       setCompiling(true)
       try {
         const res = await fetch(
-          `http://localhost:3001/compile-ea?account=${encodeURIComponent(selectedAccount.name)}`,
+          `http://localhost:3001/compile-ea?account=${encodeURIComponent(selectedAccount.name)}&userId=${encodeURIComponent(userId || "")}`,
           { signal: AbortSignal.timeout(30000) }
         )
         if (res.ok) {

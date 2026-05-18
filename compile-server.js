@@ -12,18 +12,24 @@ const TEMPLATE     = 'C:\\Users\\MT5\\OneDrive\\Desktop\\Journal\\MT5_EA\\Global
 const ADVISORS_DIR = 'C:\\Users\\MT5\\AppData\\Roaming\\MetaQuotes\\Terminal\\53785E099C927DB68A545C249CDBCE06\\MQL5\\Experts\\Advisors'
 const META_EDITOR  = 'C:\\Users\\MT5\\AppData\\Roaming\\MetaTrader 5 IC Markets Global\\MetaEditor64.exe'
 
-function compileForAccount(accountName) {
+function compileForAccount(accountName, userId = '') {
   const safeName = accountName.replace(/[^a-zA-Z0-9_\-]/g, '_')
   const mq5Path  = path.join(ADVISORS_DIR, `GS_Journal_${safeName}.mq5`)
   const ex5Path  = path.join(ADVISORS_DIR, `GS_Journal_${safeName}.ex5`)
   const logPath  = path.join(process.env.TEMP || 'C:\\Temp', 'mq5compile.log')
 
-  // Leer plantilla y reemplazar nombre de cuenta
+  // Leer plantilla y reemplazar nombre de cuenta y USER_ID
   const template = fs.readFileSync(TEMPLATE, 'utf8')
-  const source   = template.replace(
-    /input string JOURNAL_ACCOUNT\s*=\s*"[^"]*";/,
-    `input string JOURNAL_ACCOUNT   = "${accountName}";`
+  let source = template.replace(
+    /input string JOURNAL_ACCOUNT\s*=\s*"[^"]*";[^\n]*/,
+    `input string JOURNAL_ACCOUNT   = "${accountName}";  // OBLIGATORIO: nombre exacto de tu cuenta en el journal`
   )
+  if (userId) {
+    source = source.replace(
+      /input string USER_ID\s*=\s*"[^"]*";[^\n]*/,
+      `input string USER_ID           = "${userId}";  // Copia tu USER_ID desde el journal (Conectar MT5)`
+    )
+  }
 
   fs.writeFileSync(mq5Path, source, 'utf8')
   execFileSync(META_EDITOR, [`/compile:${mq5Path}`, `/log:${logPath}`], { timeout: 30000 })
@@ -52,11 +58,12 @@ const server = http.createServer((req, res) => {
 
   if (url.pathname === '/compile-ea') {
     const account = url.searchParams.get('account') || ''
+    const userId  = url.searchParams.get('userId') || ''
     if (!account) { res.writeHead(400); res.end('Falta parámetro account'); return }
 
-    console.log(`⚙  Compilando EA para: "${account}"...`)
+    console.log(`⚙  Compilando EA para: "${account}" (user: ${userId || 'sin ID'})...`)
     try {
-      const { ex5Path, safeName } = compileForAccount(account)
+      const { ex5Path, safeName } = compileForAccount(account, userId)
       const data = fs.readFileSync(ex5Path)
       res.setHeader('Content-Type', 'application/octet-stream')
       res.setHeader('Content-Disposition', `attachment; filename="GlobalSairu_Journal_${safeName}.ex5"`)
