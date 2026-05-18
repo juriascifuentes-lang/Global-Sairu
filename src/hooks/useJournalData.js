@@ -154,6 +154,16 @@ export function useJournalData(userId, showToast) {
     }
   }
 
+  const deleteManyTrades = async (ids) => {
+    if (ids.length === 0) return
+    if (await showConfirm(`¿Eliminar ${ids.length} trades seleccionados? Esta acción no se puede deshacer.`, { title: "Eliminar trades", confirmLabel: "Eliminar", danger: true })) {
+      const idsSet = new Set(ids)
+      trades.forEach((t) => { if (t.copiedFromId && idsSet.has(t.copiedFromId)) idsSet.add(t.id) })
+      setTrades((prev) => prev.filter((t) => !idsSet.has(t.id)))
+      await supabase.from("trades").delete().in("id", [...idsSet]).eq("user_id", userId)
+    }
+  }
+
   const clearAllTrades = async (accountName) => {
     const label = accountName ? `de la cuenta "${accountName}"` : "de TODAS las cuentas"
     if (await showConfirm(`¿Eliminar todos los trades ${label}? Esta acción no se puede deshacer.`, { title: "Eliminar trades", confirmLabel: "Eliminar todo", danger: true })) {
@@ -306,7 +316,7 @@ export function useJournalData(userId, showToast) {
     trades, accounts, withdrawals, strategies,
     selectedAccountId, setSelectedAccountId,
     loadData,
-    addTrade, deleteTrade, clearAllTrades, importTrades, replaceAccountTrades,
+    addTrade, deleteTrade, deleteManyTrades, clearAllTrades, importTrades, replaceAccountTrades,
     createAccount, deleteAccount, updateAccount,
     addWithdrawal, deleteWithdrawal,
     createStrategy, deleteStrategy,

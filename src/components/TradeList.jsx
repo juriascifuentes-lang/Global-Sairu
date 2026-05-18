@@ -206,14 +206,37 @@ function TradeViewModal({ trade, onClose, showPct, accountSizeMap }) {
 const ROW_HEIGHT = 58
 
 const gridCols = (showAccountCol) =>
-  showAccountCol ? "140px 1fr 90px 110px 110px 1fr 150px" : "140px 1fr 90px 110px 1fr 150px"
+  showAccountCol ? "28px 140px 1fr 90px 110px 110px 1fr 150px" : "28px 140px 1fr 90px 110px 1fr 150px"
 
-function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showPct, accountSizeMap, onEditTrade, onDeleteTrade, setViewingTrade }) {
+function RowCheckbox({ checked, onChange }) {
+  return (
+    <span
+      onClick={(e) => { e.stopPropagation(); onChange() }}
+      style={{
+        width: "16px", height: "16px", borderRadius: "4px", flexShrink: 0,
+        border: `1.5px solid ${checked ? "#ef4444" : "rgba(148,163,184,0.3)"}`,
+        background: checked ? "#ef4444" : "transparent",
+        display: "grid", placeItems: "center", cursor: "pointer",
+        transition: "all 0.12s",
+      }}
+    >
+      {checked && (
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      )}
+    </span>
+  )
+}
+
+function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showPct, accountSizeMap, onEditTrade, onDeleteTrade, setViewingTrade, selectedIds, onToggleSelect }) {
   const trade = trades[index]
   const profit = Number(trade.profit)
   const isWin = profit >= 0
   const isBuy = trade.type === "BUY"
   const [hovered, setHovered] = useState(false)
+  const selected = selectedIds.has(trade.id)
+  const bulkMode = selectedIds.size >= 2
 
   return (
     <div
@@ -226,13 +249,18 @@ function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showPc
         alignItems: "center",
         padding: "0 22px",
         borderBottom: "1px solid rgba(148, 163, 184, 0.05)",
-        background: hovered ? "rgba(148,163,184,0.025)" : "transparent",
+        background: selected ? "rgba(239,68,68,0.04)" : hovered ? "rgba(148,163,184,0.025)" : "transparent",
         transition: "background 0.1s",
         boxSizing: "border-box",
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* Checkbox */}
+      <div style={{ display: "flex", alignItems: "center" }}>
+        <RowCheckbox checked={selected} onChange={() => onToggleSelect(trade.id)} />
+      </div>
+
       {/* Date */}
       <div style={{ color: "var(--text-muted)", fontSize: "12px" }}>
         {fmtDate(trade.date, trade.id)}
@@ -300,38 +328,42 @@ function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showPc
 
       {/* Actions */}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
-        <button
-          onClick={() => setViewingTrade(trade)}
-          style={{
-            background: "transparent", color: "var(--text-muted)",
-            border: "1px solid rgba(148, 163, 184, 0.18)", borderRadius: "8px",
-            padding: "6px 12px", cursor: "pointer", fontWeight: "600", fontSize: "11px",
-          }}
-        >
-          Ver
-        </button>
-        {trade.copiedFromId ? (
-          <span
-            title="Editá el trade desde la cuenta maestra"
-            style={{
-              border: "1px solid rgba(148,163,184,0.10)", borderRadius: "8px",
-              padding: "6px 12px", fontWeight: "600", fontSize: "11px",
-              color: "rgba(148,163,184,0.35)", cursor: "default", userSelect: "none",
-            }}
-          >
-            Editar
-          </span>
-        ) : (
+        {!bulkMode && (
           <button
-            onClick={() => onEditTrade(trade)}
+            onClick={() => setViewingTrade(trade)}
             style={{
               background: "transparent", color: "var(--text-muted)",
               border: "1px solid rgba(148, 163, 184, 0.18)", borderRadius: "8px",
               padding: "6px 12px", cursor: "pointer", fontWeight: "600", fontSize: "11px",
             }}
           >
-            Editar
+            Ver
           </button>
+        )}
+        {!bulkMode && (
+          trade.copiedFromId ? (
+            <span
+              title="Editá el trade desde la cuenta maestra"
+              style={{
+                border: "1px solid rgba(148,163,184,0.10)", borderRadius: "8px",
+                padding: "6px 12px", fontWeight: "600", fontSize: "11px",
+                color: "rgba(148,163,184,0.35)", cursor: "default", userSelect: "none",
+              }}
+            >
+              Editar
+            </span>
+          ) : (
+            <button
+              onClick={() => onEditTrade(trade)}
+              style={{
+                background: "transparent", color: "var(--text-muted)",
+                border: "1px solid rgba(148, 163, 184, 0.18)", borderRadius: "8px",
+                padding: "6px 12px", cursor: "pointer", fontWeight: "600", fontSize: "11px",
+              }}
+            >
+              Editar
+            </button>
+          )
         )}
         <button
           onClick={() => onDeleteTrade(trade.id)}
@@ -352,6 +384,7 @@ export function TradeList({
   trades,
   onEditTrade,
   onDeleteTrade,
+  onDeleteManyTrades,
   activeAccountName = null,
   showPct = false,
   accountSizeMap = {},
@@ -362,7 +395,22 @@ export function TradeList({
   const [viewingTrade, setViewingTrade] = useState(null)
   const [selectedSymbols, setSelectedSymbols] = useState(new Set())
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState(new Set())
   const symbolDropdownRef = useRef(null)
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleBulkDelete = async () => {
+    await onDeleteManyTrades([...selectedIds])
+    setSelectedIds(new Set())
+  }
 
   const uniqueSymbols = useMemo(() =>
     [...new Set(trades.map((t) => t.symbol).filter(Boolean))].sort(),
@@ -412,6 +460,8 @@ export function TradeList({
     onEditTrade,
     onDeleteTrade,
     setViewingTrade,
+    selectedIds,
+    onToggleSelect: toggleSelect,
   }
 
   return (
@@ -446,9 +496,28 @@ export function TradeList({
 
       {/* Filters + count */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 22px", flexWrap: "wrap", gap: "10px" }}>
-        <span style={{ color: "var(--text-muted)", fontSize: "13px" }}>
-          {filteredTrades.length} operaciones
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span style={{ color: "var(--text-muted)", fontSize: "13px" }}>
+            {filteredTrades.length} operaciones
+          </span>
+          {selectedIds.size >= 2 && (
+            <button
+              onClick={handleBulkDelete}
+              style={{
+                display: "flex", alignItems: "center", gap: "6px",
+                padding: "6px 14px", borderRadius: "8px", cursor: "pointer",
+                background: "rgba(239,68,68,0.1)", color: "#f87171",
+                border: "1px solid rgba(239,68,68,0.25)", fontWeight: "700", fontSize: "12px",
+                transition: "all 0.12s",
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+              </svg>
+              Eliminar {selectedIds.size} seleccionados
+            </button>
+          )}
+        </div>
         <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
           <button onClick={() => setFilter("ALL")} style={pillBtn(filter === "ALL", "#10b981", "rgba(16,185,129,0.12)")}>Todos</button>
           <button onClick={() => setFilter("BUY")} style={pillBtn(filter === "BUY", "#60a5fa", "rgba(59,130,246,0.12)")}>LONG</button>
@@ -553,8 +622,38 @@ export function TradeList({
           fontWeight: "700",
           textTransform: "uppercase",
           letterSpacing: "0.12em",
+          alignItems: "center",
         }}
       >
+        <div>
+          {(() => {
+            const allSelected = filteredTrades.length > 0 && filteredTrades.every((t) => selectedIds.has(t.id))
+            const someSelected = filteredTrades.some((t) => selectedIds.has(t.id))
+            return (
+              <span
+                onClick={() => {
+                  if (allSelected) setSelectedIds(new Set())
+                  else setSelectedIds(new Set(filteredTrades.map((t) => t.id)))
+                }}
+                style={{
+                  width: "16px", height: "16px", borderRadius: "4px",
+                  border: `1.5px solid ${someSelected ? "#ef4444" : "rgba(148,163,184,0.3)"}`,
+                  background: allSelected ? "#ef4444" : someSelected ? "rgba(239,68,68,0.3)" : "transparent",
+                  display: "grid", placeItems: "center", cursor: "pointer", transition: "all 0.12s",
+                }}
+              >
+                {(allSelected || someSelected) && (
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                    {allSelected
+                      ? <polyline points="20 6 9 17 4 12"/>
+                      : <line x1="5" y1="12" x2="19" y2="12"/>
+                    }
+                  </svg>
+                )}
+              </span>
+            )
+          })()}
+        </div>
         <div>Fecha</div>
         <div>Activo</div>
         <div>Tipo</div>

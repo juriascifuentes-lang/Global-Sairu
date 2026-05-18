@@ -145,7 +145,7 @@ function App() {
     trades, accounts, withdrawals, strategies,
     selectedAccountId, setSelectedAccountId,
     loadData,
-    addTrade, deleteTrade, clearAllTrades, importTrades, replaceAccountTrades,
+    addTrade, deleteTrade, deleteManyTrades, clearAllTrades, importTrades, replaceAccountTrades,
     createAccount, deleteAccount, updateAccount,
     addWithdrawal, deleteWithdrawal,
     createStrategy, deleteStrategy,
@@ -419,6 +419,7 @@ function App() {
               trades={displayedTrades}
               onEditTrade={editTrade}
               onDeleteTrade={deleteTrade}
+              onDeleteManyTrades={deleteManyTrades}
               activeAccountName={activeAccount ? activeAccount.name : null}
               showPct={showPct}
               accountSizeMap={accountSizeMap}
