@@ -449,6 +449,7 @@ export function TradeList({
         (t.account || "").toLowerCase().includes(q)
       )
     })
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
 
   const listHeight = Math.min(filteredTrades.length * ROW_HEIGHT, 600)
 
