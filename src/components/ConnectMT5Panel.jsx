@@ -58,8 +58,40 @@ const ntSteps = [
   },
 ]
 
+const platforms = [
+  { key: "MT5",         label: "MetaTrader 5",  logo: "/MT5.png" },
+  { key: "NINJATRADER", label: "NinjaTrader 8", logo: "/NINJATRADER.png" },
+]
+
+function StepList({ steps }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {steps.map((step) => (
+        <div key={step.num} style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
+          <div style={{
+            width: "28px", height: "28px", borderRadius: "8px",
+            background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.25)",
+            display: "grid", placeItems: "center",
+            fontSize: "12px", fontWeight: "800", color: "#10b981", flexShrink: 0,
+          }}>
+            {step.num}
+          </div>
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)", marginBottom: "3px" }}>
+              {step.title}
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.55" }}>
+              {step.desc}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function ConnectMT5Panel({ accounts, userId }) {
-  const [platform, setPlatform]                 = useState("MT5")
+  const [platform, setPlatform]                   = useState(null)
   const [selectedAccountId, setSelectedAccountId] = useState("")
   const [serverOnline, setServerOnline]           = useState(false)
   const [compiling, setCompiling]                 = useState(false)
@@ -99,7 +131,6 @@ export function ConnectMT5Panel({ accounts, userId }) {
       } catch (e) {}
       setCompiling(false)
     }
-
     const link = document.createElement("a")
     link.href  = "/GlobalSairu_Journal.ex5"
     link.download = "GlobalSairu_Journal.ex5"
@@ -115,29 +146,7 @@ export function ConnectMT5Panel({ accounts, userId }) {
 
   const canDownload = !!selectedAccount
 
-  const tabBtn = (label, value) => (
-    <button
-      key={value}
-      onClick={() => setPlatform(value)}
-      style={{
-        padding: "9px 22px",
-        borderRadius: "10px",
-        border: "none",
-        background: platform === value
-          ? "linear-gradient(135deg,#10b981,#059669)"
-          : "transparent",
-        color: platform === value ? "#fff" : "var(--text-muted)",
-        fontWeight: "700",
-        fontSize: "13px",
-        cursor: "pointer",
-        transition: "all 0.15s",
-      }}
-    >
-      {label}
-    </button>
-  )
-
-  const paramsSection = (
+  const ParamsSection = ({ platformLabel }) => (
     <div style={cardStyle}>
       <h2 style={{ margin: "0 0 6px", fontSize: "16px", fontWeight: "700", color: "var(--text-1)" }}>
         Parámetros del {platform === "MT5" ? "EA" : "AddOn"}
@@ -149,7 +158,7 @@ export function ConnectMT5Panel({ accounts, userId }) {
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {[
-          { label: "USER_ID", value: userId || "—", desc: "Tu identificador único — no lo compartas" },
+          { label: "USER_ID",        value: userId || "—",                                                    desc: "Tu identificador único — no lo compartas" },
           { label: "JOURNAL_ACCOUNT", value: selectedAccount ? selectedAccount.name : "Selecciona una cuenta arriba", desc: "Nombre exacto de tu cuenta en el journal" },
         ].map(({ label, value, desc }) => (
           <div key={label} style={{ background: "var(--inner-bg)", borderRadius: "12px", padding: "14px 16px", border: "1px solid var(--border-input)" }}>
@@ -158,10 +167,7 @@ export function ConnectMT5Panel({ accounts, userId }) {
                 <div style={{ fontSize: "10px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "6px" }}>
                   {label}
                 </div>
-                <code style={{
-                  fontSize: "13px", color: "var(--text-1)", fontFamily: "monospace",
-                  display: "block", wordBreak: "break-all", lineHeight: "1.4",
-                }}>
+                <code style={{ fontSize: "13px", color: "var(--text-1)", fontFamily: "monospace", display: "block", wordBreak: "break-all", lineHeight: "1.4" }}>
                   {value}
                 </code>
                 <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "5px" }}>{desc}</div>
@@ -169,11 +175,7 @@ export function ConnectMT5Panel({ accounts, userId }) {
               <button
                 onClick={() => navigator.clipboard.writeText(value)}
                 title="Copiar"
-                style={{
-                  flexShrink: 0, padding: "8px", borderRadius: "8px",
-                  border: "1px solid rgba(148,163,184,0.18)", background: "transparent",
-                  color: "var(--text-muted)", cursor: "pointer",
-                }}
+                style={{ flexShrink: 0, padding: "8px", borderRadius: "8px", border: "1px solid rgba(148,163,184,0.18)", background: "transparent", color: "var(--text-muted)", cursor: "pointer" }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -198,27 +200,67 @@ export function ConnectMT5Panel({ accounts, userId }) {
           Conectar a:
         </h1>
         <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "14px" }}>
-          Sincroniza trades automáticamente desde tu plataforma al journal
+          Elige tu plataforma para sincronizar trades automáticamente al journal
         </p>
       </div>
 
-      {/* Platform tabs */}
-      <div style={{
-        display: "inline-flex",
-        background: "var(--inner-bg)",
-        border: "1px solid var(--border-input)",
-        borderRadius: "13px",
-        padding: "4px",
-        gap: "4px",
-        alignSelf: "flex-start",
-      }}>
-        {tabBtn("MT5", "MT5")}
-        {tabBtn("NinjaTrader", "NINJATRADER")}
+      {/* Platform selector cards */}
+      <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+        {platforms.map(({ key, label, logo }) => {
+          const active = platform === key
+          return (
+            <button
+              key={key}
+              onClick={() => setPlatform(active ? null : key)}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "14px",
+                width: "140px",
+                height: "130px",
+                borderRadius: "18px",
+                border: active
+                  ? "2px solid #10b981"
+                  : "2px solid rgba(148,163,184,0.12)",
+                background: active
+                  ? "rgba(16,185,129,0.07)"
+                  : "var(--card-bg)",
+                cursor: "pointer",
+                transition: "all 0.18s",
+                boxShadow: active ? "0 0 0 3px rgba(16,185,129,0.15)" : "none",
+                padding: "0",
+              }}
+            >
+              <img
+                src={logo}
+                alt={label}
+                style={{
+                  width: "52px",
+                  height: "52px",
+                  objectFit: "contain",
+                  filter: active ? "none" : "grayscale(30%) opacity(0.75)",
+                  transition: "filter 0.18s",
+                }}
+              />
+              <span style={{
+                fontSize: "12px",
+                fontWeight: "700",
+                color: active ? "#10b981" : "var(--text-muted)",
+                letterSpacing: "0.02em",
+                transition: "color 0.18s",
+              }}>
+                {label}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
-      {platform === "MT5" ? (
+      {/* Content — only shown after selecting a platform */}
+      {platform === "MT5" && (
         <>
-          {/* MT5 — Descarga */}
           <div style={cardStyle}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
               <h2 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "var(--text-1)" }}>
@@ -278,11 +320,11 @@ export function ConnectMT5Panel({ accounts, userId }) {
                       <span style={{ color: "#10b981", fontWeight: "700", fontFamily: "monospace" }}>
                         JOURNAL_ACCOUNT = "{selectedAccount.name}"
                       </span>{" "}
-                      incluido — el usuario solo pega el archivo y arrastra al gráfico.
+                      incluido.
                     </>
                   ) : (
                     <>
-                      Se descargará el EA genérico. Al arrastrarlo al gráfico en MT5, escribe{" "}
+                      Se descargará el EA genérico. Al arrastrarlo a MT5 escribe{" "}
                       <span style={{ color: "var(--text-1)", fontWeight: "700" }}>{selectedAccount.name}</span>{" "}
                       en el campo <span style={{ fontFamily: "monospace", color: "var(--text-1)" }}>JOURNAL_ACCOUNT</span>.
                       <br />
@@ -301,9 +343,7 @@ export function ConnectMT5Panel({ accounts, userId }) {
                   padding: "13px 20px",
                   borderRadius: "12px",
                   border: "none",
-                  background: canDownload && !compiling
-                    ? "linear-gradient(135deg,#10b981,#059669)"
-                    : "rgba(148,163,184,0.07)",
+                  background: canDownload && !compiling ? "linear-gradient(135deg,#10b981,#059669)" : "rgba(148,163,184,0.07)",
                   color: canDownload && !compiling ? "#fff" : "var(--text-muted)",
                   fontWeight: "700",
                   fontSize: "14px",
@@ -312,7 +352,6 @@ export function ConnectMT5Panel({ accounts, userId }) {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "8px",
-                  transition: "opacity 0.15s",
                 }}
               >
                 {compiling ? (
@@ -329,56 +368,27 @@ export function ConnectMT5Panel({ accounts, userId }) {
                       <polyline points="7 10 12 15 17 10"/>
                       <line x1="12" y1="15" x2="12" y2="3"/>
                     </svg>
-                    {serverOnline && selectedAccount
-                      ? `Descargar EA para "${selectedAccount.name}"`
-                      : "Descargar EA (.ex5)"}
+                    {serverOnline && selectedAccount ? `Descargar EA para "${selectedAccount.name}"` : "Descargar EA (.ex5)"}
                   </>
                 )}
               </button>
 
               {compiling && (
-                <div style={{ fontSize: "12px", color: "var(--text-muted)", textAlign: "center", marginTop: "4px" }}>
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", textAlign: "center" }}>
                   Compilando el EA personalizado, esto puede tardar hasta 30 segundos...
                 </div>
               )}
             </div>
           </div>
 
-          {paramsSection}
+          <ParamsSection />
 
-          {/* MT5 — Instrucciones */}
           <div style={cardStyle}>
             <h2 style={{ margin: "0 0 20px", fontSize: "16px", fontWeight: "700", color: "var(--text-1)" }}>
               Instrucciones de instalación
             </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {mt5Steps.map((step) => (
-                <div key={step.num} style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
-                  <div style={{
-                    width: "28px", height: "28px", borderRadius: "8px",
-                    background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.25)",
-                    display: "grid", placeItems: "center",
-                    fontSize: "12px", fontWeight: "800", color: "#10b981", flexShrink: 0,
-                  }}>
-                    {step.num}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)", marginBottom: "3px" }}>
-                      {step.title}
-                    </div>
-                    <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.55" }}>
-                      {step.desc}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{
-              marginTop: "20px", padding: "14px 16px",
-              background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.18)",
-              borderRadius: "12px", fontSize: "12px", color: "var(--text-muted)",
-              display: "flex", gap: "10px", alignItems: "flex-start",
-            }}>
+            <StepList steps={mt5Steps} />
+            <div style={{ marginTop: "20px", padding: "14px 16px", background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.18)", borderRadius: "12px", fontSize: "12px", color: "var(--text-muted)", display: "flex", gap: "10px", alignItems: "flex-start" }}>
               <svg style={{ color: "#10b981", flexShrink: 0, marginTop: "1px" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
@@ -389,9 +399,10 @@ export function ConnectMT5Panel({ accounts, userId }) {
             </div>
           </div>
         </>
-      ) : (
+      )}
+
+      {platform === "NINJATRADER" && (
         <>
-          {/* NinjaTrader — Descarga */}
           <div style={cardStyle}>
             <h2 style={{ margin: "0 0 6px", fontSize: "16px", fontWeight: "700", color: "var(--text-1)" }}>
               Descargar AddOn para NinjaTrader 8
@@ -401,7 +412,6 @@ export function ConnectMT5Panel({ accounts, userId }) {
             </p>
 
             <div style={{ display: "grid", gap: "14px", maxWidth: "480px" }}>
-              {/* Selector de cuenta */}
               <div>
                 <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: "7px" }}>
                   Cuenta del journal <span style={{ color: "#f87171" }}>*</span>
@@ -454,55 +464,20 @@ export function ConnectMT5Panel({ accounts, userId }) {
                 Descargar GlobalSairu_Journal.cs
               </button>
 
-              <div style={{
-                padding: "12px 14px",
-                background: "rgba(16,185,129,0.05)",
-                border: "1px solid rgba(16,185,129,0.15)",
-                borderRadius: "10px",
-                fontSize: "12px",
-                color: "var(--text-muted)",
-                lineHeight: "1.6",
-              }}>
+              <div style={{ padding: "12px 14px", background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.15)", borderRadius: "10px", fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.6" }}>
                 Compatible con <span style={{ color: "var(--text-1)", fontWeight: "600" }}>NinjaTrader 8</span>. Sincroniza todos los trades cerrados de la cuenta seleccionada.
               </div>
             </div>
           </div>
 
-          {paramsSection}
+          <ParamsSection />
 
-          {/* NinjaTrader — Instrucciones */}
           <div style={cardStyle}>
             <h2 style={{ margin: "0 0 20px", fontSize: "16px", fontWeight: "700", color: "var(--text-1)" }}>
               Instrucciones de instalación
             </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {ntSteps.map((step) => (
-                <div key={step.num} style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
-                  <div style={{
-                    width: "28px", height: "28px", borderRadius: "8px",
-                    background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.25)",
-                    display: "grid", placeItems: "center",
-                    fontSize: "12px", fontWeight: "800", color: "#10b981", flexShrink: 0,
-                  }}>
-                    {step.num}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)", marginBottom: "3px" }}>
-                      {step.title}
-                    </div>
-                    <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.55" }}>
-                      {step.desc}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{
-              marginTop: "20px", padding: "14px 16px",
-              background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.18)",
-              borderRadius: "12px", fontSize: "12px", color: "var(--text-muted)",
-              display: "flex", gap: "10px", alignItems: "flex-start",
-            }}>
+            <StepList steps={ntSteps} />
+            <div style={{ marginTop: "20px", padding: "14px 16px", background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.18)", borderRadius: "12px", fontSize: "12px", color: "var(--text-muted)", display: "flex", gap: "10px", alignItems: "flex-start" }}>
               <svg style={{ color: "#10b981", flexShrink: 0, marginTop: "1px" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
