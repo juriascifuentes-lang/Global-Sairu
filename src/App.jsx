@@ -614,7 +614,7 @@ function App() {
                 </div>
 
                 {/* Últimos trades */}
-                <div style={{ background: "var(--card-bg)", borderRadius: "16px", padding: "16px 18px", border: "1px solid var(--border-card)" }}>
+                <div style={{ background: "var(--card-bg)", borderRadius: "16px", padding: "16px 18px", border: "1px solid var(--border-card)", marginTop: "8px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                     <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)" }}>Últimos trades</div>
                     <button onClick={() => setActivePage("TRADES")} style={{ background: "none", border: "none", color: "#10b981", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}>Ver todos →</button>
