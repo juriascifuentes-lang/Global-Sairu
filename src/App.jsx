@@ -293,7 +293,7 @@ function App() {
         {activePage === "ADMIN" && profile.is_admin && <AdminPanel />}
 
         {/* ─── CONNECT MT5 ─── */}
-        {activePage === "CONNECT_MT5" && <ConnectMT5Panel accounts={accounts} />}
+        {activePage === "CONNECT_MT5" && <ConnectMT5Panel accounts={accounts} userId={userId} />}
 
         {/* ─── COPY TRADING ─── */}
         {activePage === "COPY_TRADING" && (

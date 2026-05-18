@@ -30,7 +30,7 @@ const steps = [
   },
 ]
 
-export function ConnectMT5Panel({ accounts }) {
+export function ConnectMT5Panel({ accounts, userId }) {
   const [selectedAccountId, setSelectedAccountId] = useState("")
   const [serverOnline, setServerOnline]           = useState(false)
   const [compiling, setCompiling]                 = useState(false)
@@ -227,6 +227,52 @@ export function ConnectMT5Panel({ accounts }) {
               Compilando el EA personalizado, esto puede tardar hasta 30 segundos...
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Parámetros del EA */}
+      <div style={cardStyle}>
+        <h2 style={{ margin: "0 0 6px", fontSize: "16px", fontWeight: "700", color: "var(--text-1)" }}>
+          Parámetros del EA
+        </h2>
+        <p style={{ margin: "0 0 18px", fontSize: "13px", color: "var(--text-muted)" }}>
+          Al arrastrar el EA al gráfico en MT5, copia estos valores exactos en los campos correspondientes.
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {[
+            { label: "USER_ID", value: userId || "—", desc: "Tu identificador único — no lo compartas" },
+            { label: "JOURNAL_ACCOUNT", value: selectedAccount ? selectedAccount.name : "Selecciona una cuenta arriba", desc: "Nombre exacto de tu cuenta en el journal" },
+          ].map(({ label, value, desc }) => (
+            <div key={label} style={{ background: "var(--inner-bg)", borderRadius: "12px", padding: "14px 16px", border: "1px solid var(--border-input)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "10px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "6px" }}>
+                    {label}
+                  </div>
+                  <code style={{
+                    fontSize: "13px", color: "var(--text-1)", fontFamily: "monospace",
+                    display: "block", wordBreak: "break-all", lineHeight: "1.4",
+                  }}>
+                    {value}
+                  </code>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "5px" }}>{desc}</div>
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(value)}
+                  title="Copiar"
+                  style={{
+                    flexShrink: 0, padding: "8px", borderRadius: "8px",
+                    border: "1px solid rgba(148,163,184,0.18)", background: "transparent",
+                    color: "var(--text-muted)", cursor: "pointer",
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
