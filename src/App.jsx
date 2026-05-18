@@ -606,15 +606,15 @@ function App() {
                 </div>
 
                 {/* Equity Curve */}
-                <div style={{ background: "var(--card-bg)", borderRadius: "16px", padding: "16px 18px 16px", border: "1px solid var(--border-card)", marginBottom: "16px" }}>
+                <div style={{ background: "var(--card-bg)", borderRadius: "16px", padding: "16px 18px 20px", border: "1px solid var(--border-card)", marginBottom: "16px", overflow: "hidden" }}>
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "10px" }}>Curva de Equity</div>
-                  <div style={{ height: "180px" }}>
+                  <div style={{ height: "200px" }}>
                     <EquityCurve trades={dashTrades} showPct={showPct} baseCapital={dashCapital} accountSizeMap={accountSizeMap} hideXAxis />
                   </div>
                 </div>
 
                 {/* Últimos trades */}
-                <div style={{ background: "var(--card-bg)", borderRadius: "16px", padding: "16px 18px", border: "1px solid var(--border-card)", marginTop: "8px" }}>
+                <div style={{ background: "var(--card-bg)", borderRadius: "16px", padding: "16px 18px", border: "1px solid var(--border-card)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                     <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)" }}>Últimos trades</div>
                     <button onClick={() => setActivePage("TRADES")} style={{ background: "none", border: "none", color: "#10b981", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}>Ver todos →</button>
