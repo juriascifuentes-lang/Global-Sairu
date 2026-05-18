@@ -485,13 +485,16 @@ export function Sidebar({
   userLevel = 1,
   showPct = false,
   onTogglePct,
+  isMobile = false,
+  isOpen = false,
+  onClose = () => {},
 }) {
   const isDark = theme === "dark"
   const [collapsed, setCollapsed] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
 
-  if (collapsed) {
+  if (collapsed && !isMobile) {
     return (
       <aside
         style={{
@@ -567,6 +570,18 @@ export function Sidebar({
   }
 
   return (
+    <>
+      {isMobile && (
+        <div
+          onClick={onClose}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)",
+            zIndex: 999, opacity: isOpen ? 1 : 0,
+            pointerEvents: isOpen ? "auto" : "none",
+            transition: "opacity 0.25s",
+          }}
+        />
+      )}
     <aside
       style={{
         width: "252px",
@@ -577,6 +592,12 @@ export function Sidebar({
         display: "flex",
         flexDirection: "column",
         flexShrink: 0,
+        ...(isMobile ? {
+          position: "fixed", top: 0, left: 0, height: "100vh",
+          zIndex: 1000, overflowY: "auto",
+          transform: isOpen ? "translateX(0)" : "translateX(-260px)",
+          transition: "transform 0.25s ease",
+        } : {}),
       }}
     >
       {/* Logo + collapse button */}
@@ -654,7 +675,7 @@ export function Sidebar({
           return (
             <button
               key={item.key}
-              onClick={() => !isLocked && onNavigate(item.key)}
+              onClick={() => { if (!isLocked) { onNavigate(item.key); if (isMobile) onClose() } }}
               title={isLocked ? "Requiere Nivel 2" : undefined}
               style={{
                 width: "100%",
@@ -859,5 +880,6 @@ export function Sidebar({
         <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
       )}
     </aside>
+    </>
   )
 }

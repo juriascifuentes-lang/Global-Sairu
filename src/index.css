@@ -72,6 +72,12 @@ body {
   color-scheme: dark;
 }
 
+/* ── Mobile responsive ── */
+@media (max-width: 768px) {
+  .mobile-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 600px; }
+}
+
 /* ── Light-mode color overrides for elements that can't use var() ── */
 :root.light,
 :root.light input,

@@ -87,6 +87,22 @@ function App() {
   const [toast, setToast] = useState(null)
   const [form, setForm] = useState(defaultForm)
   const [dashboardFilter, setDashboardFilter] = useState("all")
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      if (!mobile) setSidebarOpen(false)
+    }
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false)
+  }, [activePage])
 
   useEffect(() => {
     if (emailVerified) {
@@ -259,6 +275,20 @@ function App() {
 
   const totalProfit = displayedTrades.reduce((sum, t) => sum + Number(t.profit || 0), 0)
 
+  const mobilePageLabels = {
+    DASHBOARD: "Dashboard", TRADES: "Trades", METRICS: "Métricas",
+    CALENDAR: "Calendario", STRATEGIES: "Estrategias", WITHDRAWALS: "Retiros",
+    ROI_ACCOUNTS: "ROI de Cuentas", IMPORT: "Importar", ACCOUNTS: "Cuentas",
+    COPY_TRADING: "Copiador", CONNECT_MT5: "Conectar", ADMIN: "Usuarios",
+  }
+
+  const bottomNavItems = [
+    { key: "DASHBOARD", label: "Dashboard", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg> },
+    { key: "TRADES", label: "Trades", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg> },
+    { key: "METRICS", label: "Métricas", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
+    { key: "ACCOUNTS", label: "Cuentas", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+  ]
+
   return (
     <div
       style={{
@@ -285,9 +315,34 @@ function App() {
         userLevel={profile.level || 1}
         showPct={showPct}
         onTogglePct={(val) => setShowPct(val)}
+        isMobile={isMobile}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
-      <main style={{ flex: 1, padding: "32px 40px 60px", overflowY: "auto", minWidth: 0, background: "var(--app-bg)" }}>
+      {/* Mobile top bar */}
+      {isMobile && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, height: "56px",
+          background: "var(--sidebar-bg)", borderBottom: "1px solid var(--border-nav)",
+          display: "flex", alignItems: "center", gap: "12px",
+          padding: "0 16px", zIndex: 100,
+        }}>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            style={{ background: "none", border: "none", color: "var(--text-1)", cursor: "pointer", padding: "6px", display: "flex" }}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <span style={{ fontWeight: "700", fontSize: "17px", color: "var(--text-1)", letterSpacing: "-0.01em" }}>
+            {mobilePageLabels[activePage] || "Global Sairu"}
+          </span>
+        </div>
+      )}
+
+      <main style={{ flex: 1, padding: isMobile ? "72px 16px 80px" : "32px 40px 60px", overflowY: "auto", minWidth: 0, background: "var(--app-bg)" }}>
 
         {/* ─── ADMIN ─── */}
         {activePage === "ADMIN" && profile.is_admin && <AdminPanel />}
@@ -580,9 +635,51 @@ function App() {
         })()}
       </main>
 
+      {/* Mobile bottom nav */}
+      {isMobile && (
+        <nav style={{
+          position: "fixed", bottom: 0, left: 0, right: 0, height: "64px",
+          background: "var(--sidebar-bg)", borderTop: "1px solid var(--border-nav)",
+          display: "flex", alignItems: "center", justifyContent: "space-around",
+          zIndex: 100, paddingBottom: "env(safe-area-inset-bottom)",
+        }}>
+          {bottomNavItems.map(({ key, label, icon }) => {
+            const isActive = activePage === key
+            return (
+              <button
+                key={key}
+                onClick={() => setActivePage(key)}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: "3px",
+                  background: "none", border: "none", cursor: "pointer",
+                  color: isActive ? "#10b981" : "var(--text-muted)",
+                  padding: "6px 12px", borderRadius: "10px", minWidth: "56px",
+                }}
+              >
+                {icon}
+                <span style={{ fontSize: "10px", fontWeight: isActive ? "700" : "500" }}>{label}</span>
+              </button>
+            )
+          })}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            style={{
+              display: "flex", flexDirection: "column", alignItems: "center", gap: "3px",
+              background: "none", border: "none", cursor: "pointer",
+              color: "var(--text-muted)", padding: "6px 12px", borderRadius: "10px", minWidth: "56px",
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+            <span style={{ fontSize: "10px", fontWeight: "500" }}>Menú</span>
+          </button>
+        </nav>
+      )}
+
       {toast && (
         <div style={{
-          position: "fixed", bottom: "24px", right: "24px", zIndex: 9999,
+          position: "fixed", bottom: isMobile ? "76px" : "24px", right: "24px", zIndex: 9999,
           background: toast.type === "error" ? "#ef4444" : "#10b981",
           color: "#fff", padding: "12px 20px", borderRadius: "12px",
           fontWeight: "600", fontSize: "13px",
