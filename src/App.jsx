@@ -609,7 +609,7 @@ function App() {
                 <div style={{ background: "var(--card-bg)", borderRadius: "16px", padding: "16px 18px 16px", border: "1px solid var(--border-card)", marginBottom: "16px" }}>
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "10px" }}>Curva de Equity</div>
                   <div style={{ height: "180px" }}>
-                    <EquityCurve trades={dashTrades} showPct={showPct} baseCapital={dashCapital} accountSizeMap={accountSizeMap} />
+                    <EquityCurve trades={dashTrades} showPct={showPct} baseCapital={dashCapital} accountSizeMap={accountSizeMap} hideXAxis />
                   </div>
                 </div>
 

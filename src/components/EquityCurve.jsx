@@ -38,7 +38,7 @@ const smoothBezier = (coords) => {
   return d
 }
 
-export function EquityCurve({ trades, showPct = false, baseCapital = 0, accountSizeMap = {} }) {
+export function EquityCurve({ trades, showPct = false, baseCapital = 0, accountSizeMap = {}, hideXAxis = false }) {
   const data = useMemo(() => {
     const items = [...trades]
       .map((t) => ({
@@ -200,7 +200,7 @@ export function EquityCurve({ trades, showPct = false, baseCapital = 0, accountS
       </div>
 
       {/* X-axis labels */}
-      {data && (
+      {data && !hideXAxis && (
         <div
           style={{
             marginLeft: "48px",
