@@ -557,6 +557,98 @@ function App() {
             { key: "funded", label: "Fondeadas" },
           ]
 
+          // ── Dashboard móvil ──
+          if (isMobile) {
+            const now = new Date()
+            const monthTrades = dashTrades.filter(t => {
+              const d = new Date(t.date)
+              return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+            })
+            const monthProfit = monthTrades.reduce((s, t) => s + Number(t.profit || 0), 0)
+            const wins = dashTrades.filter(t => Number(t.profit) > 0).length
+            const winRate = dashTrades.length > 0 ? (wins / dashTrades.length) * 100 : 0
+            const recentTrades = [...dashTrades].slice(0, 6)
+
+            return (
+              <>
+                {/* Saludo */}
+                <p style={{ margin: "0 0 20px", color: "var(--text-muted)", fontSize: "14px" }}>
+                  Hola, <strong style={{ color: "var(--text-1)" }}>{userName.split(/\d/)[0]}</strong>
+                </p>
+
+                {/* P&L mes + Win rate */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+                  <div style={{ background: "var(--card-bg)", borderRadius: "16px", padding: "18px 16px", border: "1px solid var(--border-card)" }}>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "6px" }}>P&L del mes</div>
+                    <div style={{ fontSize: "26px", fontWeight: "800", color: monthProfit >= 0 ? "#10b981" : "#f87171", letterSpacing: "-0.02em" }}>
+                      {monthProfit >= 0 ? "+" : ""}${monthProfit.toFixed(0)}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>{monthTrades.length} trades</div>
+                  </div>
+                  <div style={{ background: "var(--card-bg)", borderRadius: "16px", padding: "18px 16px", border: "1px solid var(--border-card)" }}>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "6px" }}>Win Rate</div>
+                    <div style={{ fontSize: "26px", fontWeight: "800", color: winRate >= 50 ? "#10b981" : "#f87171", letterSpacing: "-0.02em" }}>
+                      {winRate.toFixed(0)}%
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>{wins}W / {dashTrades.length - wins}L</div>
+                  </div>
+                </div>
+
+                {/* P&L total acumulado */}
+                <div style={{ background: "var(--card-bg)", borderRadius: "16px", padding: "16px 18px", border: "1px solid var(--border-card)", marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>P&L Total acumulado</div>
+                    <div style={{ fontSize: "22px", fontWeight: "800", color: equityColor, marginTop: "4px" }}>{equityLabel}</div>
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", textAlign: "right" }}>
+                    <div>{dashTrades.length} trades totales</div>
+                  </div>
+                </div>
+
+                {/* Equity Curve */}
+                <div style={{ background: "var(--card-bg)", borderRadius: "16px", padding: "16px 18px", border: "1px solid var(--border-card)", marginBottom: "16px" }}>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "10px" }}>Curva de Equity</div>
+                  <div style={{ height: "160px" }}>
+                    <EquityCurve trades={dashTrades} showPct={showPct} baseCapital={dashCapital} accountSizeMap={accountSizeMap} />
+                  </div>
+                </div>
+
+                {/* Últimos trades */}
+                <div style={{ background: "var(--card-bg)", borderRadius: "16px", padding: "16px 18px", border: "1px solid var(--border-card)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)" }}>Últimos trades</div>
+                    <button onClick={() => setActivePage("TRADES")} style={{ background: "none", border: "none", color: "#10b981", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}>Ver todos →</button>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {recentTrades.length === 0 && (
+                      <div style={{ color: "var(--text-muted)", fontSize: "13px", textAlign: "center", padding: "16px 0" }}>Sin trades aún</div>
+                    )}
+                    {recentTrades.map(t => {
+                      const profit = Number(t.profit || 0)
+                      return (
+                        <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid var(--border-row)" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <div style={{
+                              width: "8px", height: "8px", borderRadius: "50%",
+                              background: profit >= 0 ? "#10b981" : "#f87171", flexShrink: 0,
+                            }} />
+                            <div>
+                              <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-1)" }}>{t.symbol}</div>
+                              <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{t.date} · {t.type === "BUY" ? "LONG" : "SHORT"}</div>
+                            </div>
+                          </div>
+                          <div style={{ fontSize: "14px", fontWeight: "700", color: profit >= 0 ? "#10b981" : "#f87171" }}>
+                            {profit >= 0 ? "+" : ""}${profit.toFixed(2)}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </>
+            )
+          }
+
           return (
             <>
               {/* ── Header ── */}
