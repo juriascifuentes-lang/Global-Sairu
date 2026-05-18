@@ -118,6 +118,7 @@ export function ImportPanel({ accounts, onImportTrades, onNavigate }) {
     const pIdx  = idx(["precio"])
     const tIdx  = idx(["tiempo"])
     const exIdx = idx(["e x", "e/x"])
+    const posIdx = idx(["posicion"])
 
     const executions = rows
       .map((cells) => ({
@@ -127,6 +128,7 @@ export function ImportPanel({ accounts, onImportTrades, onNavigate }) {
         price:    parseNumber(normalizeCell(cells[pIdx])),
         rawTime:  normalizeCell(cells[tIdx]),
         isEntry:  normalizeCell(cells[exIdx]).toLowerCase().includes("entrada"),
+        posicion: posIdx !== -1 ? normalizeCell(cells[posIdx]) : "",
       }))
       .filter((e) => e.symbol && e.price > 0)
       .sort((a, b) => {
@@ -135,34 +137,50 @@ export function ImportPanel({ accounts, onImportTrades, onNavigate }) {
         return `${da} ${ta}`.localeCompare(`${db} ${tb}`)
       })
 
+    // FIFO queue por símbolo: { type, fifo: [{price, qty}], firstTime, totalPnl, exitQty }
     const open = {}
     const trades = []
 
     for (const exec of executions) {
-      const sym = exec.symbol
+      const sym  = exec.symbol
+      const base = sym.split(" ")[0].replace(/[0-9]/g, "")
+      const pv   = NT8_POINT_VALUES[base] ?? 1
+
       if (exec.isEntry) {
         if (!open[sym]) {
-          open[sym] = { type: exec.isBuy ? "BUY" : "SELL", totalQty: 0, totalCost: 0, firstTime: exec.rawTime }
+          open[sym] = { type: exec.isBuy ? "BUY" : "SELL", fifo: [], firstTime: exec.rawTime, totalPnl: 0, exitQty: 0 }
         }
-        open[sym].totalQty  += exec.quantity
-        open[sym].totalCost += exec.price * exec.quantity
+        open[sym].fifo.push({ price: exec.price, qty: exec.quantity })
       } else if (open[sym]) {
-        const pos       = open[sym]
-        const avgEntry  = pos.totalCost / pos.totalQty
-        const base      = sym.split(" ")[0].replace(/[0-9]/g, "")
-        const pv        = NT8_POINT_VALUES[base] ?? 1
-        const profit    = pos.type === "BUY"
-          ? (exec.price - avgEntry) * pv * exec.quantity
-          : (avgEntry - exec.price) * pv * exec.quantity
-        const { date, time } = parseDateString(pos.firstTime)
-        trades.push({
-          symbol: sym, type: pos.type,
-          profit: profit.toFixed(2), date, openTime: time,
-          account: accountName,
-          note: `NinjaTrader | Contratos: ${exec.quantity}`,
-          strategy: "", stopLoss: null, takeProfit: null,
-        })
-        delete open[sym]
+        const pos     = open[sym]
+        let remaining = exec.quantity
+
+        while (remaining > 0 && pos.fifo.length > 0) {
+          const entry    = pos.fifo[0]
+          const matchQty = Math.min(remaining, entry.qty)
+          const pnl      = pos.type === "BUY"
+            ? (exec.price - entry.price) * pv * matchQty
+            : (entry.price - exec.price) * pv * matchQty
+          pos.totalPnl += pnl
+          pos.exitQty  += matchQty
+          entry.qty    -= matchQty
+          remaining    -= matchQty
+          if (entry.qty <= 0) pos.fifo.shift()
+        }
+
+        // Posición flat: "-" o cola vacía
+        const isFlat = exec.posicion === "-" || exec.posicion === "" || pos.fifo.length === 0
+        if (isFlat) {
+          const { date, time } = parseDateString(pos.firstTime)
+          trades.push({
+            symbol: sym, type: pos.type,
+            profit: pos.totalPnl.toFixed(2), date, openTime: time,
+            account: accountName,
+            note: `NinjaTrader | Contratos: ${pos.exitQty}`,
+            strategy: "", stopLoss: null, takeProfit: null,
+          })
+          delete open[sym]
+        }
       }
     }
     return trades
