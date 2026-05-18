@@ -1,12 +1,13 @@
-// GlobalSairu Journal — NinjaTrader 8 AddOn
-// Sincroniza trades cerrados a Supabase automaticamente
-// Instrucciones: Herramientas → Importar NinjaScript → selecciona este archivo
+// GlobalSairu Journal — NinjaTrader 8 Strategy
+// Sincroniza trades manuales cerrados a Supabase automaticamente
 
 #region Using declarations
 using System;
-using System.Net.Http;
+using System.Net;
 using System.Text;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 using NinjaTrader.Cbi;
 using NinjaTrader.NinjaScript;
@@ -17,34 +18,36 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
     public class GlobalSairu_Journal : Strategy
     {
-        private HttpClient httpClient;
-        private HashSet<string> syncedIds = new HashSet<string>();
-        private bool historySynced = false;
+        private class PendingTrade
+        {
+            public string Symbol;
+            public string Type;
+            public double EntryPrice;
+            public int    Quantity;
+            public DateTime EntryTime;
+            public double PointValue;
+        }
+
+        private Dictionary<string, PendingTrade> pending  = new Dictionary<string, PendingTrade>();
+        private HashSet<string>                  syncedIds = new HashSet<string>();
 
         protected override void OnStateChange()
         {
             if (State == State.SetDefaults)
             {
-                Name                = "GlobalSairu_Journal";
-                Description         = "Sincroniza trades con el Journal de Global Sairu";
-                Calculate           = Calculate.OnBarClose;
-                IsOverlay           = true;
-                IsAutoScale         = false;
-                SupabaseUrl         = "https://wvkdvvrbittavgjkezpy.supabase.co";
-                SupabaseKey         = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2a2R2dnJiaXR0YXZnamtlenB5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODY3OTAxMiwiZXhwIjoyMDk0MjU1MDEyfQ.5vUm8FSJZTswxlsz7TzEOEy0ScGUu27KrTGNncjta6g";
-                UserId              = "";
-                JournalAccount      = "";
+                Name           = "GlobalSairu_Journal";
+                Description    = "Sincroniza trades con el Journal de Global Sairu";
+                Calculate      = Calculate.OnBarClose;
+                IsOverlay      = true;
+                IsAutoScale    = false;
+                SupabaseUrl    = "https://wvkdvvrbittavgjkezpy.supabase.co";
+                SupabaseKey    = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2a2R2dnJiaXR0YXZnamtlenB5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODY3OTAxMiwiZXhwIjoyMDk0MjU1MDEyfQ.5vUm8FSJZTswxlsz7TzEOEy0ScGUu27KrTGNncjta6g";
+                UserId         = "";
+                JournalAccount = "";
             }
-            else if (State == State.DataLoaded)
+            else if (State == State.Realtime)
             {
-                httpClient = new HttpClient();
-                httpClient.DefaultRequestHeaders.Add("apikey", SupabaseKey);
-                httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer " + SupabaseKey);
-                httpClient.DefaultRequestHeaders.Add("Prefer", "return=minimal");
-            }
-            else if (State == State.Terminated)
-            {
-                httpClient?.Dispose();
+                Print("GlobalSairu Journal: activo. Esperando trades...");
             }
         }
 
@@ -54,50 +57,56 @@ namespace NinjaTrader.NinjaScript.Strategies
             double price, int quantity, MarketPosition marketPosition,
             string orderId, DateTime time)
         {
-            if (!historySynced)
-            {
-                historySynced = true;
-                Task.Run(() => SyncHistory());
-            }
-        }
+            string symbol = execution.Instrument.FullName;
+            double pv     = execution.Instrument.MasterInstrument.PointValue;
 
-        private void SyncHistory()
-        {
-            try
+            Print("GlobalSairu: ejecución " + symbol + " | pos=" + marketPosition + " | price=" + price + " | qty=" + quantity);
+
+            if (marketPosition == MarketPosition.Long || marketPosition == MarketPosition.Short)
             {
-                var trades = SystemPerformance.AllTrades;
-                int synced = 0;
-                foreach (Trade trade in trades)
+                // Entrada: abrir posición
+                if (!pending.ContainsKey(symbol))
                 {
-                    string tradeId = trade.Entry.Time.Ticks.ToString() + "_" + trade.Exit.Time.Ticks.ToString();
-                    if (syncedIds.Contains(tradeId)) continue;
-
-                    bool ok = SendTrade(trade, tradeId);
-                    if (ok)
+                    pending[symbol] = new PendingTrade
                     {
-                        syncedIds.Add(tradeId);
-                        synced++;
-                    }
+                        Symbol     = symbol,
+                        Type       = marketPosition == MarketPosition.Long ? "BUY" : "SELL",
+                        EntryPrice = price,
+                        Quantity   = quantity,
+                        EntryTime  = time,
+                        PointValue = pv
+                    };
+                    Print("GlobalSairu: entrada registrada " + symbol + " " + pending[symbol].Type + " @ " + price);
                 }
-                Print("GlobalSairu Journal: " + synced + " trades sincronizados.");
             }
-            catch (Exception ex)
+            else if (marketPosition == MarketPosition.Flat && pending.ContainsKey(symbol))
             {
-                Print("GlobalSairu Journal Error: " + ex.Message);
+                // Salida: trade completo
+                var pt      = pending[symbol];
+                double diff = pt.Type == "BUY" ? (price - pt.EntryPrice) : (pt.EntryPrice - price);
+                double profit = Math.Round(diff * pt.PointValue * pt.Quantity, 2);
+
+                string tradeId = pt.EntryTime.Ticks.ToString() + "_" + time.Ticks.ToString();
+                pending.Remove(symbol);
+
+                if (!syncedIds.Contains(tradeId))
+                {
+                    syncedIds.Add(tradeId);
+                    string sym  = pt.Symbol;
+                    string type = pt.Type;
+                    string date = time.ToString("yyyy-MM-dd");
+                    string open = pt.EntryTime.ToString("HH:mm");
+                    int    qty  = pt.Quantity;
+                    Task.Factory.StartNew(() => SendTrade(sym, type, profit, date, open, qty, tradeId));
+                }
             }
         }
 
-        private bool SendTrade(Trade trade, string tradeId)
+        private void SendTrade(string symbol, string type, double profit,
+            string date, string openTime, int contracts, string tradeId)
         {
             try
             {
-                string symbol    = trade.Entry.Instrument.FullName;
-                string type      = trade.Entry.MarketPosition == MarketPosition.Long ? "BUY" : "SELL";
-                double profit    = Math.Round(trade.ProfitCurrency, 2);
-                string dateStr   = trade.Exit.Time.ToString("yyyy-MM-dd");
-                string openTime  = trade.Entry.Time.ToString("HH:mm");
-                int    contracts = trade.Quantity;
-
                 long id = Math.Abs(tradeId.GetHashCode());
 
                 string json = "{" +
@@ -106,25 +115,27 @@ namespace NinjaTrader.NinjaScript.Strategies
                     "\"symbol\":\"" + symbol + "\"," +
                     "\"type\":\"" + type + "\"," +
                     "\"profit\":" + profit.ToString(System.Globalization.CultureInfo.InvariantCulture) + "," +
-                    "\"date\":\"" + dateStr + "\"," +
+                    "\"date\":\"" + date + "\"," +
                     "\"open_time\":\"" + openTime + "\"," +
                     "\"account\":\"" + JournalAccount + "\"," +
-                    "\"note\":\"Importado desde NinjaTrader | Contratos: " + contracts + "\"," +
+                    "\"note\":\"NinjaTrader | Contratos: " + contracts + "\"," +
                     "\"entry_images\":[]" +
                     "}";
 
-                string url = SupabaseUrl + "/rest/v1/trades";
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                var task = httpClient.PostAsync(url, content);
-                task.Wait(5000);
-
-                int status = (int)task.Result.StatusCode;
-                return status == 200 || status == 201;
+                using (var client = new WebClient())
+                {
+                    client.Encoding = Encoding.UTF8;
+                    client.Headers.Add("apikey", SupabaseKey);
+                    client.Headers.Add("Authorization", "Bearer " + SupabaseKey);
+                    client.Headers.Add("Prefer", "return=minimal");
+                    client.Headers.Add("Content-Type", "application/json");
+                    client.UploadString(SupabaseUrl + "/rest/v1/trades", "POST", json);
+                }
+                Print("GlobalSairu Journal: trade enviado — " + symbol + " " + type + " P&L: " + profit);
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                Print("GlobalSairu Journal Error: " + ex.Message);
             }
         }
 

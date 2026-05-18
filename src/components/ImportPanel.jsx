@@ -95,6 +95,79 @@ export function ImportPanel({ accounts, onImportTrades, onNavigate }) {
     )
   }
 
+  // Punto value por instrumento de futuros (dólares por punto)
+  const NT8_POINT_VALUES = {
+    MNQ: 2, NQ: 20, ES: 50, MES: 5,
+    MYM: 0.5, YM: 5, RTY: 10, M2K: 5,
+    GC: 100, MGC: 10, SI: 5000, CL: 1000,
+    NG: 10000, ZB: 1000, ZN: 1000, ZF: 1000,
+  }
+
+  const isNinjaTraderFormat = (headers) =>
+    headers.some((h) => h === "instrumento") &&
+    headers.some((h) => h === "accion") &&
+    headers.some((h) => h === "e x" || h === "e/x")
+
+  const parseNinjaTraderExecutions = (headers, rows, accountName) => {
+    const idx = (candidates) =>
+      candidates.reduce((found, c) => (found !== -1 ? found : headers.findIndex((h) => h === c || h.includes(c))), -1)
+
+    const iIdx  = idx(["instrumento"])
+    const aIdx  = idx(["accion"])
+    const qIdx  = idx(["cantidad"])
+    const pIdx  = idx(["precio"])
+    const tIdx  = idx(["tiempo"])
+    const exIdx = idx(["e x", "e/x"])
+
+    const executions = rows
+      .map((cells) => ({
+        symbol:   normalizeCell(cells[iIdx]),
+        isBuy:    normalizeCell(cells[aIdx]).toLowerCase().includes("comprar"),
+        quantity: Math.abs(parseInt(normalizeCell(cells[qIdx])) || 1),
+        price:    parseNumber(normalizeCell(cells[pIdx])),
+        rawTime:  normalizeCell(cells[tIdx]),
+        isEntry:  normalizeCell(cells[exIdx]).toLowerCase().includes("entrada"),
+      }))
+      .filter((e) => e.symbol && e.price > 0)
+      .sort((a, b) => {
+        const { date: da, time: ta } = parseDateString(a.rawTime)
+        const { date: db, time: tb } = parseDateString(b.rawTime)
+        return `${da} ${ta}`.localeCompare(`${db} ${tb}`)
+      })
+
+    const open = {}
+    const trades = []
+
+    for (const exec of executions) {
+      const sym = exec.symbol
+      if (exec.isEntry) {
+        if (!open[sym]) {
+          open[sym] = { type: exec.isBuy ? "BUY" : "SELL", totalQty: 0, totalCost: 0, firstTime: exec.rawTime }
+        }
+        open[sym].totalQty  += exec.quantity
+        open[sym].totalCost += exec.price * exec.quantity
+      } else if (open[sym]) {
+        const pos       = open[sym]
+        const avgEntry  = pos.totalCost / pos.totalQty
+        const base      = sym.split(" ")[0].replace(/[0-9]/g, "")
+        const pv        = NT8_POINT_VALUES[base] ?? 1
+        const profit    = pos.type === "BUY"
+          ? (exec.price - avgEntry) * pv * exec.quantity
+          : (avgEntry - exec.price) * pv * exec.quantity
+        const { date, time } = parseDateString(pos.firstTime)
+        trades.push({
+          symbol: sym, type: pos.type,
+          profit: profit.toFixed(2), date, openTime: time,
+          account: accountName,
+          note: `NinjaTrader | Contratos: ${exec.quantity}`,
+          strategy: "", stopLoss: null, takeProfit: null,
+        })
+        delete open[sym]
+      }
+    }
+    return trades
+  }
+
   const handleFile = (file) => {
     setError("")
     setMessage("")
@@ -160,6 +233,17 @@ export function ImportPanel({ accounts, onImportTrades, onNavigate }) {
           }
         }
 
+        // ── Detectar formato NinjaTrader ──
+        if (isNinjaTraderFormat(headers)) {
+          const validTrades = parseNinjaTraderExecutions(headers, rows, accountName)
+          if (validTrades.length === 0)
+            throw new Error("No se encontraron trades completos en el archivo de NinjaTrader.")
+          await onImportTrades(validTrades)
+          setMessage(`Importados ${validTrades.length} trades desde NinjaTrader 8.`)
+          return
+        }
+
+        // ── Formato MT5 / genérico ──
         const findIndex = (candidates) =>
           candidates.reduce((index, candidate) => {
             if (index !== -1) return index
@@ -207,7 +291,7 @@ export function ImportPanel({ accounts, onImportTrades, onNavigate }) {
           symbolIndex === -1 ||
           (datetimeIndex === -1 && dateIndex === -1 && timeIndex === -1)
         ) {
-          throw new Error("El archivo no tiene las columnas esperadas de MT5.")
+          throw new Error("El archivo no tiene las columnas esperadas.")
         }
 
         const imported = rows.map((cells) => {
