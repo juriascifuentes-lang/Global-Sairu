@@ -6,6 +6,97 @@ import {
   parseXlsxFile, parseHtmlTable,
 } from "../utils/parseImport"
 
+const NT8_POINT_VALUES = {
+  MNQ: 2, NQ: 20, ES: 50, MES: 5,
+  MYM: 0.5, YM: 5, RTY: 10, M2K: 5,
+  GC: 100, MGC: 10, SI: 5000, CL: 1000,
+  NG: 10000, ZB: 1000, ZN: 1000, ZF: 1000,
+}
+
+const isNinjaTraderFormat = (headers) =>
+  headers.some((h) => h === "instrumento") &&
+  headers.some((h) => h === "accion") &&
+  headers.some((h) => h === "e x" || h === "e/x")
+
+const parseNinjaTraderExecutions = (headers, rows, accountName) => {
+  const idx = (candidates) =>
+    candidates.reduce((found, c) => (found !== -1 ? found : headers.findIndex((h) => h === c || h.includes(c))), -1)
+
+  const iIdx   = idx(["instrumento"])
+  const aIdx   = idx(["accion"])
+  const qIdx   = idx(["cantidad"])
+  const pIdx   = idx(["precio"])
+  const tIdx   = idx(["tiempo"])
+  const exIdx  = idx(["e x", "e/x"])
+  const posIdx = idx(["posicion"])
+
+  const executions = rows
+    .map((cells) => ({
+      symbol:   normalizeCell(cells[iIdx]),
+      isBuy:    normalizeCell(cells[aIdx]).toLowerCase().includes("comprar"),
+      quantity: Math.abs(parseInt(normalizeCell(cells[qIdx])) || 1),
+      price:    parseNumber(normalizeCell(cells[pIdx])),
+      rawTime:  normalizeCell(cells[tIdx]),
+      isEntry:  normalizeCell(cells[exIdx]).toLowerCase().includes("entrada"),
+      posicion: posIdx !== -1 ? normalizeCell(cells[posIdx]) : "",
+    }))
+    .filter((e) => e.symbol && e.price > 0)
+    .sort((a, b) => {
+      const { date: da, time: ta } = parseDateString(a.rawTime)
+      const { date: db, time: tb } = parseDateString(b.rawTime)
+      const cmp = `${da} ${ta}`.localeCompare(`${db} ${tb}`)
+      if (cmp !== 0) return cmp
+      if (a.isEntry && !b.isEntry) return -1
+      if (!a.isEntry && b.isEntry) return 1
+      return 0
+    })
+
+  const open = {}
+  const result = []
+
+  for (const exec of executions) {
+    const sym  = exec.symbol
+    const base = sym.split(" ")[0].replace(/[0-9]/g, "")
+    const pv   = NT8_POINT_VALUES[base] ?? 1
+
+    if (exec.isEntry) {
+      if (!open[sym]) {
+        open[sym] = { type: exec.isBuy ? "BUY" : "SELL", fifo: [], firstTime: exec.rawTime, totalPnl: 0, exitQty: 0 }
+      }
+      open[sym].fifo.push({ price: exec.price, qty: exec.quantity })
+    } else if (open[sym]) {
+      const pos     = open[sym]
+      let remaining = exec.quantity
+
+      while (remaining > 0 && pos.fifo.length > 0) {
+        const entry    = pos.fifo[0]
+        const matchQty = Math.min(remaining, entry.qty)
+        const pnl      = pos.type === "BUY"
+          ? (exec.price - entry.price) * pv * matchQty
+          : (entry.price - exec.price) * pv * matchQty
+        pos.totalPnl += pnl
+        pos.exitQty  += matchQty
+        entry.qty    -= matchQty
+        remaining    -= matchQty
+        if (entry.qty <= 0) pos.fifo.shift()
+      }
+
+      if (pos.fifo.length === 0) {
+        const { date, time } = parseDateString(pos.firstTime)
+        result.push({
+          symbol: sym, type: pos.type,
+          profit: pos.totalPnl.toFixed(2), date, openTime: time,
+          account: accountName,
+          note: `NinjaTrader | Contratos: ${pos.exitQty}`,
+          strategy: "", stopLoss: null, takeProfit: null,
+        })
+        delete open[sym]
+      }
+    }
+  }
+  return result
+}
+
 const inputStyle = {
   background: "var(--inner-bg)",
   border: "1px solid var(--border-input)",
@@ -314,6 +405,25 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
             rows = sliceUntilSectionEnd(parsed.slice(hi + 1))
           }
         }
+        // ── Detectar formato NinjaTrader ──
+        if (isNinjaTraderFormat(headers)) {
+          const imported = parseNinjaTraderExecutions(headers, rows, accountName)
+          if (imported.length === 0) throw new Error("No se encontraron trades completos en el archivo de NinjaTrader.")
+          const existing = trades.filter(t => t.account === accountName).length
+          const msg = existing > 0
+            ? `¿Reemplazar ${existing} trades de "${accountName}" con ${imported.length} del archivo? Esta acción no se puede deshacer.`
+            : `¿Importar ${imported.length} trades a la cuenta "${accountName}"?`
+          if (!await showConfirm(msg, { title: "Importar trades", confirmLabel: "Importar", danger: false })) { if (fileInputRef.current) fileInputRef.current.value = ""; return }
+          const result = await onReplaceAccountTrades(accountName, imported)
+          if (result && result.ok === false) {
+            setReimportErr(`Error al guardar: ${result.error?.message || "inténtalo de nuevo."}`)
+          } else {
+            setReimportMsg(`✓ ${imported.length} trades de NinjaTrader importados para "${accountName}".`)
+          }
+          return
+        }
+
+        // ── Formato MT5 / genérico ──
         const fi = (cands) => cands.reduce((idx, c) => idx !== -1 ? idx : headers.findIndex(h => h.includes(c)), -1)
         const dtIdx = fi(["fecha hora","fecha/hora","date time","date/time","open time","close time"])
         const dIdx  = fi(["date","fecha","open date","open time"])
