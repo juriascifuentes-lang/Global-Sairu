@@ -4,6 +4,7 @@ import {
   parseNumber, normalizeCell, parseDateString, detectDelimiter,
   normalizeHeader, findHeaderRow, sliceUntilSectionEnd,
   parseXlsxFile, parseHtmlTable,
+  isTradovateFormat, parseTradovateCSV,
 } from "../utils/parseImport"
 
 const NT8_POINT_VALUES = {
@@ -405,6 +406,24 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
             rows = sliceUntilSectionEnd(parsed.slice(hi + 1))
           }
         }
+        // ── Detectar formato Tradovate ──
+        if (isTradovateFormat(headers)) {
+          const imported = parseTradovateCSV(headers, rows, accountName)
+          if (imported.length === 0) throw new Error("No se encontraron trades en el archivo de Tradovate.")
+          const existing = trades.filter(t => t.account === accountName).length
+          const msg = existing > 0
+            ? `¿Reemplazar ${existing} trades de "${accountName}" con ${imported.length} del archivo? Esta acción no se puede deshacer.`
+            : `¿Importar ${imported.length} trades a la cuenta "${accountName}"?`
+          if (!await showConfirm(msg, { title: "Importar trades", confirmLabel: "Importar", danger: false })) { if (fileInputRef.current) fileInputRef.current.value = ""; return }
+          const result = await onReplaceAccountTrades(accountName, imported)
+          if (result && result.ok === false) {
+            setReimportErr(`Error al guardar: ${result.error?.message || "inténtalo de nuevo."}`)
+          } else {
+            setReimportMsg(`✓ ${imported.length} trades de Tradovate importados para "${accountName}".`)
+          }
+          return
+        }
+
         // ── Detectar formato NinjaTrader ──
         if (isNinjaTraderFormat(headers)) {
           const imported = parseNinjaTraderExecutions(headers, rows, accountName)

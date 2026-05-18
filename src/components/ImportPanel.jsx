@@ -9,6 +9,8 @@ import {
   sliceUntilSectionEnd,
   parseXlsxFile,
   parseHtmlTable,
+  isTradovateFormat,
+  parseTradovateCSV,
 } from "../utils/parseImport"
 
 const inputStyle = {
@@ -254,6 +256,16 @@ export function ImportPanel({ accounts, onImportTrades, onNavigate }) {
             headers = parsedLines[headerRowIndex].map(normalizeHeader)
             rows = sliceUntilSectionEnd(parsedLines.slice(headerRowIndex + 1))
           }
+        }
+
+        // ── Detectar formato Tradovate ──
+        if (isTradovateFormat(headers)) {
+          const validTrades = parseTradovateCSV(headers, rows, accountName)
+          if (validTrades.length === 0)
+            throw new Error("No se encontraron trades en el archivo de Tradovate.")
+          await onImportTrades(validTrades)
+          setMessage(`Importados ${validTrades.length} trades desde Tradovate.`)
+          return
         }
 
         // ── Detectar formato NinjaTrader ──

@@ -64,7 +64,18 @@ export const parseDateString = (value) => {
   if (first.length === 4) {
     year = first; month = second; day = third
   } else if (third.length === 4) {
-    year = third; month = second; day = first
+    year = third
+    const sNum = numeric(second)
+    if (firstNum > 12) {
+      // DD/MM/YYYY: first is clearly a day
+      month = second; day = first
+    } else if (sNum > 12) {
+      // MM/DD/YYYY: second is clearly a day (Tradovate format)
+      month = first; day = second
+    } else {
+      // Ambiguous — default to DD/MM/YYYY
+      month = second; day = first
+    }
   } else if (firstNum > 31) {
     year = first; month = second; day = third
   } else {
@@ -173,6 +184,61 @@ export const parseXlsxFile = (arrayBuffer) => {
     row.map(formatXlsxCell)
   )
   return { headers, dataRows }
+}
+
+export const isTradovateFormat = (headers) =>
+  headers.some((h) => h === "bought timestamp") &&
+  headers.some((h) => h === "sold timestamp")
+
+export const parseTradovateCSV = (headers, rows, accountName) => {
+  const idx = (candidates) =>
+    candidates.reduce(
+      (found, c) => (found !== -1 ? found : headers.findIndex((h) => h === c || h.includes(c))),
+      -1
+    )
+
+  const contractIdx  = idx(["contract"])
+  const plIdx        = idx(["p l"])
+  const boughtTsIdx  = idx(["bought timestamp"])
+  const soldTsIdx    = idx(["sold timestamp"])
+  const pairedQtyIdx = idx(["paired qty"])
+
+  const parseTs = (ts) => {
+    const m = ts.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{2}):(\d{2})/)
+    return m ? new Date(+m[3], +m[1] - 1, +m[2], +m[4], +m[5]).getTime() : 0
+  }
+
+  const trades = []
+
+  for (const cells of rows) {
+    const contract = normalizeCell(cells[contractIdx] || "")
+    const pl       = parseNumber(normalizeCell(cells[plIdx] || "0"))
+    const boughtTs = normalizeCell(cells[boughtTsIdx] || "")
+    const soldTs   = normalizeCell(cells[soldTsIdx] || "")
+    const qty      = Math.abs(parseInt(normalizeCell(cells[pairedQtyIdx] || "1")) || 1)
+
+    if (!contract || !boughtTs || !soldTs) continue
+
+    const isLong         = parseTs(boughtTs) <= parseTs(soldTs)
+    const entryTs        = isLong ? boughtTs : soldTs
+    const { date, time } = parseDateString(entryTs)
+    if (!date) continue
+
+    trades.push({
+      symbol:     contract,
+      type:       isLong ? "BUY" : "SELL",
+      profit:     pl.toFixed(2),
+      date,
+      openTime:   time,
+      account:    accountName,
+      note:       `Tradovate | Contratos: ${qty}`,
+      strategy:   "",
+      stopLoss:   null,
+      takeProfit: null,
+    })
+  }
+
+  return trades
 }
 
 // Returns only the direct <tr> rows of a table — avoids picking up rows from nested tables.
