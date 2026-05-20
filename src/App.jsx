@@ -87,6 +87,7 @@ function App() {
   const [toast, setToast] = useState(null)
   const [form, setForm] = useState(defaultForm)
   const [dashboardFilter, setDashboardFilter] = useState("all")
+  const [marketFilter, setMarketFilter] = useState("all")
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -515,11 +516,19 @@ function App() {
 
         {/* ─── DASHBOARD ─── */}
         {activePage === "DASHBOARD" && (() => {
-          const dashFilterNames = dashboardFilter === "all" ? null
+          const dashFilterNames = (dashboardFilter === "all" && marketFilter === "all") ? null
             : accounts
-                .filter(a => dashboardFilter === "challenge"
-                  ? (a.phase === "Fase 1" || a.phase === "Fase 2")
-                  : a.phase === "Fondeada")
+                .filter(a => {
+                  const phaseMatch = dashboardFilter === "all" ? true
+                    : dashboardFilter === "challenge"
+                      ? (a.phase === "Fase 1" || a.phase === "Fase 2")
+                      : a.phase === "Fondeada"
+                  const marketMatch = marketFilter === "all" ? true
+                    : marketFilter === "futuros"
+                      ? a.capitalType === "Empresa de Fondeo Futuros"
+                      : a.capitalType === "Empresa de Fondeo CFDS"
+                  return phaseMatch && marketMatch
+                })
                 .map(a => a.name)
 
           const dashTrades = dashFilterNames
@@ -665,30 +674,58 @@ function App() {
                   </p>
                 </div>
 
-                {/* Filtro de cuentas */}
-                <div style={{ display: "flex", gap: "4px", background: "var(--inner-bg)", borderRadius: "14px", padding: "4px", alignSelf: "flex-start", marginTop: "8px" }}>
-                  {filterOptions.map(f => (
-                    <button
-                      key={f.key}
-                      onClick={() => setDashboardFilter(f.key)}
-                      style={{
-                        padding: "8px 16px",
-                        borderRadius: "10px",
-                        border: "none",
-                        background: dashboardFilter === f.key ? "var(--card-bg)" : "transparent",
-                        color: dashboardFilter === f.key ? "var(--text-1)" : "var(--text-muted)",
-                        fontWeight: dashboardFilter === f.key ? "700" : "500",
-                        fontSize: "12.5px",
-                        cursor: "pointer",
-                        transition: "all 0.15s",
-                        fontFamily: "Inter, Arial, sans-serif",
-                        boxShadow: dashboardFilter === f.key ? "0 1px 4px rgba(0,0,0,0.18)" : "none",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
+                {/* Filtros */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px", alignSelf: "flex-start", marginTop: "8px" }}>
+                  {/* Filtro mercado */}
+                  <div style={{ display: "flex", gap: "4px", background: "var(--inner-bg)", borderRadius: "14px", padding: "4px" }}>
+                    {[{ key: "all", label: "Todos" }, { key: "futuros", label: "Futuros" }, { key: "forex", label: "Forex" }].map(f => (
+                      <button
+                        key={f.key}
+                        onClick={() => setMarketFilter(f.key)}
+                        style={{
+                          padding: "7px 14px",
+                          borderRadius: "10px",
+                          border: "none",
+                          background: marketFilter === f.key ? "var(--card-bg)" : "transparent",
+                          color: marketFilter === f.key ? "var(--text-1)" : "var(--text-muted)",
+                          fontWeight: marketFilter === f.key ? "700" : "500",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                          transition: "all 0.15s",
+                          fontFamily: "Inter, Arial, sans-serif",
+                          boxShadow: marketFilter === f.key ? "0 1px 4px rgba(0,0,0,0.18)" : "none",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Filtro fase */}
+                  <div style={{ display: "flex", gap: "4px", background: "var(--inner-bg)", borderRadius: "14px", padding: "4px" }}>
+                    {filterOptions.map(f => (
+                      <button
+                        key={f.key}
+                        onClick={() => setDashboardFilter(f.key)}
+                        style={{
+                          padding: "7px 14px",
+                          borderRadius: "10px",
+                          border: "none",
+                          background: dashboardFilter === f.key ? "var(--card-bg)" : "transparent",
+                          color: dashboardFilter === f.key ? "var(--text-1)" : "var(--text-muted)",
+                          fontWeight: dashboardFilter === f.key ? "700" : "500",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                          transition: "all 0.15s",
+                          fontFamily: "Inter, Arial, sans-serif",
+                          boxShadow: dashboardFilter === f.key ? "0 1px 4px rgba(0,0,0,0.18)" : "none",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
