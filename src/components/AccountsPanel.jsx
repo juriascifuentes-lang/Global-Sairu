@@ -123,26 +123,21 @@ const labelStyle = {
 
 // Empresas de fondeo CFDS (Forex/CFDs)
 const PROP_FIRMS_CFDS = [
-  "FTMO", "FundedNext", "The Funded Trader (TFT)", "True Forex Funds", "Funding Pips",
-  "E8 Funding", "The5%ers", "Blue Guardian", "City Traders Imperium", "Audacity Capital",
-  "Lux Trading Firm", "Maven Trading", "FX2 Funding", "Alpha Capital Group", "Alpha Futures",
-  "Wall Street Funded (WSF)", "Goat Funded Trader", "Skilled Funded Traders", "Lucid Trading",
+  "FTMO", "FundedNext", "Wall Street Funded", "The5%ers",
+  "Orion Fund", "Funding Pips", "Alpha Capital",
   "Otro...",
 ]
 
 // Empresas de fondeo Futuros
 const PROP_FIRMS_FUTUROS = [
-  "Tradeify", "Apex Trader Funding", "Topstep", "Bulenox", "Earn2Trade",
-  "My Funded Futures", "TradeDay", "Take Profit Trader", "Uprofit", "Elite Trader Funding",
+  "Lucid Trading", "Topstep", "Alpha Futures", "Apex",
+  "Take Profit", "Tradeify",
   "Otro...",
 ]
 
 const BROKERS = [
-  "Interactive Brokers", "OANDA", "Forex.com", "IC Markets", "Pepperstone",
-  "Exness", "XM", "FP Markets", "Tickmill", "FXCM", "IG", "Saxo Bank", "Capital.com",
-  "NinjaTrader Brokerage", "TradeStation", "Tastytrade", "TD Ameritrade / Schwab",
-  "Binance", "Coinbase", "Kraken", "Bybit", "OKX", "KuCoin",
-  "Webull", "Robinhood", "E*TRADE", "Fidelity", "Otro...",
+  "NinjaTrader", "Tradovate", "Exness", "Pepperstone", "Darwinex", "Axi",
+  "Otro...",
 ]
 
 const getBrokerList = (capitalType) => {
