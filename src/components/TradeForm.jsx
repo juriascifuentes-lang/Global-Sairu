@@ -223,32 +223,41 @@ export function TradeForm({ form, setForm, onAddTrade, isEditing, accounts, stra
           <input placeholder="0" value={form.takeProfit || ""} onChange={(e) => setForm({ ...form, takeProfit: e.target.value })} style={inputStyle} type="number" step="1" min="0" />
         </div>
 
-        {isReview && (
-          <div style={{ gridColumn: "1 / -1" }}>
-            <div style={{ fontSize: "10px", color: "#a855f7", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: "7px" }}>
-              RR Máximo alcanzado
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", alignItems: "center" }}>
-              <input
-                placeholder="Ej: 2.5"
-                value={form.maxRR || ""}
-                onChange={(e) => setForm({ ...form, maxRR: e.target.value })}
-                style={{ ...inputStyle, border: "1px solid rgba(168,85,247,0.35)" }}
-                type="number"
-                step="0.1"
-                min="0"
-              />
-              <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
-                ¿Hasta qué RR llegó el precio antes de cerrar o revertir?
-                {form.maxRR && Number(form.maxRR) > 0 && (
-                  <span style={{ display: "block", marginTop: "4px", color: "#a855f7", fontWeight: "600" }}>
-                    Máximo: {Number(form.maxRR).toFixed(1)}R
-                  </span>
-                )}
+        {isReview && (() => {
+          const isNegativePnl = form.profit !== "" && Number(form.profit) < 0
+          return (
+            <div style={{ gridColumn: "1 / -1" }}>
+              <div style={{ fontSize: "10px", color: isNegativePnl ? "rgba(168,85,247,0.35)" : "#a855f7", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: "7px" }}>
+                RR Máximo alcanzado
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", alignItems: "center" }}>
+                <input
+                  placeholder="Ej: 2.5"
+                  value={form.maxRR || ""}
+                  onChange={(e) => setForm({ ...form, maxRR: e.target.value })}
+                  disabled={isNegativePnl}
+                  style={{
+                    ...inputStyle,
+                    border: `1px solid ${isNegativePnl ? "rgba(168,85,247,0.1)" : "rgba(168,85,247,0.35)"}`,
+                    opacity: isNegativePnl ? 0.4 : 1,
+                    cursor: isNegativePnl ? "not-allowed" : "text",
+                  }}
+                  type="number"
+                  step="0.1"
+                  min="0"
+                />
+                <div style={{ fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                  ¿Hasta qué RR llegó el precio antes de cerrar o revertir?
+                  {!isNegativePnl && form.maxRR && Number(form.maxRR) > 0 && (
+                    <span style={{ display: "block", marginTop: "4px", color: "#a855f7", fontWeight: "600" }}>
+                      Máximo: {Number(form.maxRR).toFixed(1)}R
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
 
       {divider}

@@ -333,7 +333,7 @@ function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showMa
       {/* RR Máx */}
       {showMaxRR && (
         <div>
-          {trade.maxRR != null && Number(trade.maxRR) > 0 ? (
+          {Number(trade.profit || 0) >= 0 && trade.maxRR != null && Number(trade.maxRR) > 0 ? (
             <span style={{
               fontSize: "11px", fontWeight: "700",
               padding: "3px 9px", borderRadius: "999px",
@@ -344,9 +344,7 @@ function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showMa
             }}>
               {Number(trade.maxRR).toFixed(1)}R
             </span>
-          ) : (
-            <span style={{ color: "rgba(148,163,184,0.35)", fontSize: "12px" }}>—</span>
-          )}
+          ) : null}
         </div>
       )}
 
