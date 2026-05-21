@@ -53,9 +53,11 @@ export function EquityCurve({ trades, showPct = false, baseCapital = 0, accountS
 
     // Acumula % por-trade (cada trade relativo al tamaño de su cuenta)
     // o $ si showPct es false
+    const startDate = new Date(items[0].date)
+    startDate.setDate(startDate.getDate() - 1)
     let cum = 0
     const points = [
-      { date: items[0].date, value: 0 },
+      { date: startDate, value: 0 },
       ...items.map((item) => {
         if (showPct) {
           const size = accountSizeMap[item.account] || baseCapital

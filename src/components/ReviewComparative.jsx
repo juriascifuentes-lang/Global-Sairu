@@ -60,9 +60,11 @@ function DualEquityCurve({ realTrades, reviewTrades }) {
 
     const accumulate = (items) => {
       if (items.length === 0) return []
+      const startDate = new Date(items[0].date)
+      startDate.setDate(startDate.getDate() - 1)
       let cum = 0
       return [
-        { date: items[0].date, value: 0 },
+        { date: startDate, value: 0 },
         ...items.map((item) => { cum += item.profit; return { date: item.date, value: cum } }),
       ]
     }
