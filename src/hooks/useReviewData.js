@@ -203,7 +203,8 @@ export function useReviewData(userId, showToast) {
   const updateAccount = async (updated) => {
     const backup = accounts.find((a) => a.id === updated.id)
     setAccounts((prev) => prev.map((a) => a.id === updated.id ? updated : a))
-    const { error } = await supabase.from("review_accounts").update(fromAccount(updated, userId)).eq("id", updated.id)
+    const { id: _id, ...updatePayload } = fromAccount(updated, userId)
+    const { error } = await supabase.from("review_accounts").update(updatePayload).eq("id", updated.id)
     if (error) {
       console.error("[review updateAccount]", error)
       if (backup) setAccounts((prev) => prev.map((a) => a.id === updated.id ? backup : a))
