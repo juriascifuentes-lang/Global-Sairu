@@ -933,6 +933,41 @@ function App() {
             return y === calYear && m - 1 === calMonth
           })
           const accountNames = [...new Set(tradesInMonth.map((t) => t.account).filter(Boolean))]
+
+          // Helper: lunes de la semana de una fecha
+          const getWeekMonday = (dateStr) => {
+            const [y, m, d] = dateStr.split("-").map(Number)
+            const date = new Date(y, m - 1, d)
+            const day = date.getDay()
+            const diff = day === 0 ? -6 : 1 - day
+            return new Date(y, m - 1, d + diff)
+          }
+          const fmtWeekRange = (monday) => {
+            const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6)
+            const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"]
+            const sd = monday.getDate(), ed = sunday.getDate()
+            return monday.getMonth() === sunday.getMonth()
+              ? `${sd} – ${ed} ${meses[monday.getMonth()]}`
+              : `${sd} ${meses[monday.getMonth()]} – ${ed} ${meses[sunday.getMonth()]}`
+          }
+
+          // Agrupar por semana
+          const weekMap = {}
+          for (const t of tradesInMonth) {
+            if (!t.date) continue
+            const monday = getWeekMonday(t.date)
+            const wk = monday.toISOString().slice(0, 10)
+            if (!weekMap[wk]) weekMap[wk] = { monday, accounts: {} }
+            const acct = t.account || "Sin cuenta"
+            if (!weekMap[wk].accounts[acct]) weekMap[wk].accounts[acct] = { total: 0, count: 0, wins: 0 }
+            const p = Number(t.profit || 0)
+            weekMap[wk].accounts[acct].total += p
+            weekMap[wk].accounts[acct].count++
+            if (p > 0) weekMap[wk].accounts[acct].wins++
+          }
+          const weekKeys = Object.keys(weekMap).sort()
+
+          // Totales por cuenta
           const accountStats = accountNames.map((name) => {
             const ts = tradesInMonth.filter((t) => t.account === name)
             const total = ts.reduce((s, t) => s + Number(t.profit || 0), 0)
@@ -954,33 +989,80 @@ function App() {
                 onMonthChange={setReviewCalendarMonth}
               />
 
-              {/* Resumen por cuenta del mes */}
-              {accountStats.length > 0 && (
-                <div>
-                  <div style={{ fontSize: "10px", color: "#a855f7", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: "12px" }}>
-                    Resumen por cuenta · {monthName}
+              {/* Resumen semanal + total por cuenta */}
+              {accountNames.length > 0 && weekKeys.length > 0 && (
+                <div style={{ background: "var(--card-bg)", borderRadius: "20px", border: "1px solid rgba(168,85,247,0.2)", overflow: "hidden" }}>
+                  {/* Título */}
+                  <div style={{ padding: "16px 22px 12px", borderBottom: "1px solid rgba(168,85,247,0.1)" }}>
+                    <span style={{ fontSize: "10px", color: "#a855f7", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.14em" }}>
+                      Resumen por cuenta · {monthName}
+                    </span>
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "12px" }}>
-                    {accountStats.map(({ name, total, count, winRate }) => (
-                      <div key={name} style={{
-                        background: "var(--card-bg)", borderRadius: "16px",
-                        border: "1px solid rgba(168,85,247,0.2)",
-                        padding: "16px 18px",
+
+                  {/* Tabla */}
+                  <div style={{ overflowX: "auto" }}>
+                    {/* Header de cuentas */}
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: `160px repeat(${accountNames.length}, 1fr)`,
+                      padding: "10px 22px",
+                      borderBottom: "1px solid rgba(148,163,184,0.07)",
+                    }}>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em" }}>Semana</div>
+                      {accountNames.map((name) => (
+                        <div key={name} style={{ fontSize: "11px", fontWeight: "700", color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.08em" }}>{name}</div>
+                      ))}
+                    </div>
+
+                    {/* Filas por semana */}
+                    {weekKeys.map((wk) => (
+                      <div key={wk} style={{
+                        display: "grid",
+                        gridTemplateColumns: `160px repeat(${accountNames.length}, 1fr)`,
+                        padding: "12px 22px",
+                        borderBottom: "1px solid rgba(148,163,184,0.05)",
                       }}>
-                        <div style={{ fontSize: "11px", fontWeight: "700", color: "#a855f7", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                          {name}
+                        <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600" }}>
+                          {fmtWeekRange(weekMap[wk].monday)}
                         </div>
-                        <div style={{ fontSize: "22px", fontWeight: "800", color: total >= 0 ? "#10b981" : "#f87171", letterSpacing: "-0.02em", marginBottom: "6px" }}>
-                          {total >= 0 ? "+" : ""}${Math.abs(total).toFixed(0)}
-                        </div>
-                        <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "var(--text-muted)" }}>
-                          <span>{count} trade{count !== 1 ? "s" : ""}</span>
-                          <span style={{ color: winRate >= 50 ? "#10b981" : "#f87171", fontWeight: "600" }}>
-                            {winRate.toFixed(0)}% WR
-                          </span>
-                        </div>
+                        {accountNames.map((name) => {
+                          const s = weekMap[wk].accounts[name]
+                          if (!s) return <div key={name} style={{ color: "rgba(148,163,184,0.3)", fontSize: "13px" }}>—</div>
+                          const wr = s.count > 0 ? (s.wins / s.count) * 100 : 0
+                          return (
+                            <div key={name}>
+                              <div style={{ fontSize: "14px", fontWeight: "700", color: s.total >= 0 ? "#10b981" : "#f87171" }}>
+                                {s.total >= 0 ? "+" : ""}${Math.abs(s.total).toFixed(0)}
+                              </div>
+                              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                                {s.count}t · <span style={{ color: wr >= 50 ? "#10b981" : "#f87171", fontWeight: "600" }}>{wr.toFixed(0)}% WR</span>
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
                     ))}
+
+                    {/* Fila total del mes */}
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: `160px repeat(${accountNames.length}, 1fr)`,
+                      padding: "14px 22px",
+                      borderTop: "1px solid rgba(168,85,247,0.15)",
+                      background: "rgba(168,85,247,0.04)",
+                    }}>
+                      <div style={{ fontSize: "11px", fontWeight: "700", color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.1em" }}>Total mes</div>
+                      {accountStats.map(({ name, total, count, winRate }) => (
+                        <div key={name}>
+                          <div style={{ fontSize: "15px", fontWeight: "800", color: total >= 0 ? "#10b981" : "#f87171" }}>
+                            {total >= 0 ? "+" : ""}${Math.abs(total).toFixed(0)}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                            {count}t · <span style={{ color: winRate >= 50 ? "#10b981" : "#f87171", fontWeight: "600" }}>{winRate.toFixed(0)}% WR</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
