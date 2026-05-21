@@ -34,7 +34,7 @@ const defaultForm = {
   openTime: "", strategy: "", account: "",
   setupQuality: "", psychology: "",
   images: [], entryNote: "", entryImages: [],
-  stopLoss: "", takeProfit: "",
+  stopLoss: "", takeProfit: "", maxRR: "",
 }
 
 const parseAccountSize = (size) => {
@@ -878,6 +878,7 @@ function App() {
                   accounts={reviewAccounts}
                   strategies={reviewStrategies}
                   onCancel={() => { resetReviewForm(); setShowReviewTradeForm(false) }}
+                  isReview={true}
                 />
               )}
               <TradeList
