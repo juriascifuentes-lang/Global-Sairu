@@ -54,15 +54,18 @@ export function EquityCurve({ trades, showPct = false, baseCapital = 0, accountS
     // Acumula % por-trade (cada trade relativo al tamaño de su cuenta)
     // o $ si showPct es false
     let cum = 0
-    const points = items.map((item) => {
-      if (showPct) {
-        const size = accountSizeMap[item.account] || baseCapital
-        cum += size > 0 ? (item.profit / size) * 100 : 0
-      } else {
-        cum += item.profit
-      }
-      return { date: item.date, value: cum }
-    })
+    const points = [
+      { date: items[0].date, value: 0 },
+      ...items.map((item) => {
+        if (showPct) {
+          const size = accountSizeMap[item.account] || baseCapital
+          cum += size > 0 ? (item.profit / size) * 100 : 0
+        } else {
+          cum += item.profit
+        }
+        return { date: item.date, value: cum }
+      }),
+    ]
 
     const values = points.map((p) => p.value)
     const minVal = Math.min(...values, 0)

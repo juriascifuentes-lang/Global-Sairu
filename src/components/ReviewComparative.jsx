@@ -59,8 +59,12 @@ function DualEquityCurve({ realTrades, reviewTrades }) {
     if (realItems.length === 0 && revItems.length === 0) return null
 
     const accumulate = (items) => {
+      if (items.length === 0) return []
       let cum = 0
-      return items.map((item) => { cum += item.profit; return { date: item.date, value: cum } })
+      return [
+        { date: items[0].date, value: 0 },
+        ...items.map((item) => { cum += item.profit; return { date: item.date, value: cum } }),
+      ]
     }
 
     const realPoints = accumulate(realItems)
