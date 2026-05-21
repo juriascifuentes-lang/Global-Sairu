@@ -212,6 +212,33 @@ export function useJournalData(userId, showToast) {
     return { ok: true }
   }
 
+  const appendAccountTrades = async (accountName, newTrades) => {
+    const existing = trades.filter((t) => t.account === accountName)
+    const existingKeys = new Set(
+      existing.map((t) => `${t.date}|${t.openTime}|${t.symbol}|${t.type}|${t.profit}`)
+    )
+    const toInsert = newTrades.filter(
+      (t) => !existingKeys.has(`${t.date}|${t.openTime}|${t.symbol}|${t.type}|${t.profit}`)
+    )
+    const duplicates = newTrades.length - toInsert.length
+    if (toInsert.length === 0) return { ok: true, inserted: 0, duplicates }
+    const ts = crypto.randomUUID()
+    const mapped = toInsert.map((t, i) => ({ id: ts + i, ...t, account: accountName }))
+    setTrades((prev) => [...mapped, ...prev])
+    const payloads = mapped.map((t) => { const { id: _tid, ...p } = fromTrade(t, userId); return p })
+    const { data, error } = await supabase.from("trades").insert(payloads).select()
+    if (error) {
+      console.error("[appendAccountTrades]", error)
+      showToast("No se pudo agregar los trades.")
+      setTrades((prev) => prev.filter((t) => !mapped.some((m) => m.id === t.id)))
+      return { ok: false, error }
+    } else if (data) {
+      const tempIds = new Set(mapped.map((t) => t.id))
+      setTrades((prev) => [...data.map(toTrade), ...prev.filter((t) => !tempIds.has(t.id))])
+    }
+    return { ok: true, inserted: toInsert.length, duplicates }
+  }
+
   // ── Accounts ────────────────────────────────────────────────────
 
   const createAccount = async (account) => {
@@ -316,7 +343,7 @@ export function useJournalData(userId, showToast) {
     trades, accounts, withdrawals, strategies,
     selectedAccountId, setSelectedAccountId,
     loadData,
-    addTrade, deleteTrade, deleteManyTrades, clearAllTrades, importTrades, replaceAccountTrades,
+    addTrade, deleteTrade, deleteManyTrades, clearAllTrades, importTrades, replaceAccountTrades, appendAccountTrades,
     createAccount, deleteAccount, updateAccount,
     addWithdrawal, deleteWithdrawal,
     createStrategy, deleteStrategy,

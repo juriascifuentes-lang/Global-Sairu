@@ -324,7 +324,7 @@ function AccountForm({ value, onChange, onSubmit, onCancel, submitLabel }) {
   )
 }
 
-export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDeleteAccount, onUpdateAccount, onReplaceAccountTrades, showPct = false }) {
+export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDeleteAccount, onUpdateAccount, onReplaceAccountTrades, onAppendAccountTrades, showPct = false }) {
   const [form, setForm]         = useState(defaultForm)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId]   = useState(null)
@@ -375,9 +375,10 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
   const totalValue      = totalInvestment + totalPnl
   const profitableCount = accountStats.filter((a) => a.pnl > 0).length
 
-  const handleReimportFile = (accountName, file) => {
+  const handleReimportFile = (accountName, capitalType, file) => {
     setReimportMsg(""); setReimportErr("")
     if (!file) return
+    const isFutures = capitalType === "Empresa de Fondeo Futuros"
     const isXlsx = /\.(xlsx|xls)$/i.test(file.name)
     const reader = new FileReader()
     reader.onload = async () => {
@@ -401,39 +402,46 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
             rows = sliceUntilSectionEnd(parsed.slice(hi + 1))
           }
         }
+
+        const doImport = async (imported, platform) => {
+          if (imported.length === 0) throw new Error(`No se encontraron trades en el archivo de ${platform}.`)
+          const existing = trades.filter(t => t.account === accountName).length
+          let msg, result
+          if (isFutures) {
+            msg = existing > 0
+              ? `¿Agregar ${imported.length} trades de ${platform} a "${accountName}"? (ya tiene ${existing}; los duplicados se omitirán)`
+              : `¿Importar ${imported.length} trades de ${platform} a la cuenta "${accountName}"?`
+            if (!await showConfirm(msg, { title: "Importar trades", confirmLabel: "Agregar", danger: false })) { if (fileInputRef.current) fileInputRef.current.value = ""; return }
+            result = await onAppendAccountTrades(accountName, imported)
+            if (result && result.ok === false) {
+              setReimportErr(`Error al guardar: ${result.error?.message || "inténtalo de nuevo."}`)
+            } else {
+              const skipMsg = result.duplicates > 0 ? ` (${result.duplicates} duplicados omitidos)` : ""
+              setReimportMsg(`✓ ${result.inserted} trades nuevos de ${platform} agregados para "${accountName}".${skipMsg}`)
+            }
+          } else {
+            msg = existing > 0
+              ? `¿Reemplazar ${existing} trades de "${accountName}" con ${imported.length} del archivo? Esta acción no se puede deshacer.`
+              : `¿Importar ${imported.length} trades a la cuenta "${accountName}"?`
+            if (!await showConfirm(msg, { title: "Importar trades", confirmLabel: "Importar", danger: false })) { if (fileInputRef.current) fileInputRef.current.value = ""; return }
+            result = await onReplaceAccountTrades(accountName, imported)
+            if (result && result.ok === false) {
+              setReimportErr(`Error al guardar: ${result.error?.message || "inténtalo de nuevo."}`)
+            } else {
+              setReimportMsg(`✓ ${imported.length} trades de ${platform} importados para "${accountName}".`)
+            }
+          }
+        }
+
         // ── Detectar formato Tradovate ──
         if (isTradovateFormat(headers)) {
-          const imported = parseTradovateCSV(headers, rows, accountName)
-          if (imported.length === 0) throw new Error("No se encontraron trades en el archivo de Tradovate.")
-          const existing = trades.filter(t => t.account === accountName).length
-          const msg = existing > 0
-            ? `¿Reemplazar ${existing} trades de "${accountName}" con ${imported.length} del archivo? Esta acción no se puede deshacer.`
-            : `¿Importar ${imported.length} trades a la cuenta "${accountName}"?`
-          if (!await showConfirm(msg, { title: "Importar trades", confirmLabel: "Importar", danger: false })) { if (fileInputRef.current) fileInputRef.current.value = ""; return }
-          const result = await onReplaceAccountTrades(accountName, imported)
-          if (result && result.ok === false) {
-            setReimportErr(`Error al guardar: ${result.error?.message || "inténtalo de nuevo."}`)
-          } else {
-            setReimportMsg(`✓ ${imported.length} trades de Tradovate importados para "${accountName}".`)
-          }
+          await doImport(parseTradovateCSV(headers, rows, accountName), "Tradovate")
           return
         }
 
         // ── Detectar formato NinjaTrader ──
         if (isNinjaTraderFormat(headers)) {
-          const imported = parseNinjaTraderExecutions(headers, rows, accountName)
-          if (imported.length === 0) throw new Error("No se encontraron trades completos en el archivo de NinjaTrader.")
-          const existing = trades.filter(t => t.account === accountName).length
-          const msg = existing > 0
-            ? `¿Reemplazar ${existing} trades de "${accountName}" con ${imported.length} del archivo? Esta acción no se puede deshacer.`
-            : `¿Importar ${imported.length} trades a la cuenta "${accountName}"?`
-          if (!await showConfirm(msg, { title: "Importar trades", confirmLabel: "Importar", danger: false })) { if (fileInputRef.current) fileInputRef.current.value = ""; return }
-          const result = await onReplaceAccountTrades(accountName, imported)
-          if (result && result.ok === false) {
-            setReimportErr(`Error al guardar: ${result.error?.message || "inténtalo de nuevo."}`)
-          } else {
-            setReimportMsg(`✓ ${imported.length} trades de NinjaTrader importados para "${accountName}".`)
-          }
+          await doImport(parseNinjaTraderExecutions(headers, rows, accountName), "NinjaTrader")
           return
         }
 
@@ -462,18 +470,7 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
             stopLoss: null, takeProfit: null,
           }
         }).filter(t => t.symbol && t.date && (t.type === "BUY" || t.type === "SELL"))
-        if (imported.length === 0) throw new Error("No se encontraron trades BUY/SELL en el archivo.")
-        const existing = trades.filter(t => t.account === accountName).length
-        const msg = existing > 0
-          ? `¿Reemplazar ${existing} trades de "${accountName}" con ${imported.length} del archivo? Esta acción no se puede deshacer.`
-          : `¿Importar ${imported.length} trades a la cuenta "${accountName}"?`
-        if (!await showConfirm(msg, { title: "Importar trades", confirmLabel: "Importar", danger: false })) { if (fileInputRef.current) fileInputRef.current.value = ""; return }
-        const result = await onReplaceAccountTrades(accountName, imported)
-        if (result && result.ok === false) {
-          setReimportErr(`Error al guardar: ${result.error?.message || "inténtalo de nuevo."}`)
-        } else {
-          setReimportMsg(`✓ ${imported.length} trades importados para "${accountName}".`)
-        }
+        await doImport(imported, "MT5")
       } catch (err) {
         setReimportErr(err.message || "Error al leer el archivo.")
       }
@@ -821,11 +818,14 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
                     {/* ── Reimport desde archivo ── */}
                     {(() => {
                       const stats = accountStats.find((a) => a.id === editingId)
-                      const accountName = accounts.find((a) => a.id === editingId)?.name
+                      const editingAccount = accounts.find((a) => a.id === editingId)
+                      const accountName = editingAccount?.name
+                      const capitalType = editingAccount?.capitalType
+                      const isFutures = capitalType === "Empresa de Fondeo Futuros"
                       return (
                         <div style={{ marginTop: "24px", paddingTop: "20px", borderTop: "1px solid rgba(148,163,184,0.08)" }}>
                           <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)", marginBottom: "8px" }}>
-                            Actualizar historial desde archivo
+                            {isFutures ? "Agregar historial desde archivo" : "Actualizar historial desde archivo"}
                           </div>
 
                           {stats?.tradeCount > 0 && (
@@ -839,13 +839,15 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
                                 {stats.tradeCount} trades actuales
                               </span>
                               <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>
-                                · sube un archivo para reemplazarlos
+                                · {isFutures ? "sube un archivo para acumular al historial" : "sube un archivo para reemplazarlos"}
                               </span>
                             </div>
                           )}
 
                           <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "14px", lineHeight: "1.5" }}>
-                            Sube tu historial desde MT4, MT5, TradingView o cualquier exportación CSV/Excel.
+                            {isFutures
+                              ? "Futuros: cada importación agrega los trades nuevos sin eliminar los anteriores. Los duplicados se omiten automáticamente."
+                              : "Sube tu historial desde MT4, MT5, TradingView o cualquier exportación CSV/Excel."}
                           </div>
 
                           <div
@@ -853,7 +855,7 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
                             onDragLeave={() => setReimportDragging(false)}
                             onDrop={(e) => {
                               e.preventDefault(); setReimportDragging(false)
-                              handleReimportFile(accountName, e.dataTransfer.files?.[0])
+                              handleReimportFile(accountName, capitalType, e.dataTransfer.files?.[0])
                             }}
                             onClick={() => fileInputRef.current?.click()}
                             style={{
@@ -891,7 +893,7 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
                               type="file"
                               accept=".csv,.html,.htm,.xlsx,.xls"
                               style={{ display: "none" }}
-                              onChange={(e) => handleReimportFile(accountName, e.target.files?.[0])}
+                              onChange={(e) => handleReimportFile(accountName, capitalType, e.target.files?.[0])}
                             />
                           </div>
 

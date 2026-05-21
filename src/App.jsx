@@ -162,7 +162,7 @@ function App() {
     trades, accounts, withdrawals, strategies,
     selectedAccountId, setSelectedAccountId,
     loadData,
-    addTrade, deleteTrade, deleteManyTrades, clearAllTrades, importTrades, replaceAccountTrades,
+    addTrade, deleteTrade, deleteManyTrades, clearAllTrades, importTrades, replaceAccountTrades, appendAccountTrades,
     createAccount, deleteAccount, updateAccount,
     addWithdrawal, deleteWithdrawal,
     createStrategy, deleteStrategy,
@@ -365,6 +365,7 @@ function App() {
             onDeleteAccount={deleteAccount}
             onUpdateAccount={updateAccount}
             onReplaceAccountTrades={replaceAccountTrades}
+            onAppendAccountTrades={appendAccountTrades}
             showPct={showPct}
           />
         )}
