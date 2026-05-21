@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useRef, useState, useCallback, useEffect } from "react"
 import { uploadImageFile } from "../lib/storage"
 
 const inputStyle = {
@@ -33,7 +33,7 @@ function ImageZone({ images = [], onChange }) {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState("")
 
-  const addFiles = async (files) => {
+  const addFiles = useCallback(async (files) => {
     const toAdd = Array.from(files).slice(0, MAX_IMAGES - images.length).filter((f) => f.type.startsWith("image/"))
     if (!toAdd.length) return
     setUploading(true)
@@ -53,7 +53,22 @@ function ImageZone({ images = [], onChange }) {
     } finally {
       setUploading(false)
     }
-  }
+  }, [images, onChange])
+
+  useEffect(() => {
+    const handlePaste = (e) => {
+      const items = Array.from(e.clipboardData?.items || [])
+      const imageFiles = items
+        .filter((item) => item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter(Boolean)
+      if (imageFiles.length === 0) return
+      e.preventDefault()
+      addFiles(imageFiles)
+    }
+    document.addEventListener("paste", handlePaste)
+    return () => document.removeEventListener("paste", handlePaste)
+  }, [addFiles])
 
   return (
     <div>
@@ -90,7 +105,14 @@ function ImageZone({ images = [], onChange }) {
             transition: "all 0.15s",
           }}
         >
-          {uploading ? "Subiendo imagen..." : "+ Agregar capturas de pantalla"}
+          {uploading ? "Subiendo imagen..." : (
+            <span>
+              + Agregar capturas de pantalla
+              <span style={{ display: "block", fontSize: "11px", fontWeight: "500", opacity: 0.6, marginTop: "3px" }}>
+                o pega con Ctrl+V
+              </span>
+            </span>
+          )}
           <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => addFiles(e.target.files)} disabled={uploading} />
         </div>
       )}
