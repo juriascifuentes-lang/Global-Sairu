@@ -178,10 +178,10 @@ const navGroups = [
     color: "#a855f7",
     colorBg: "rgba(168,85,247,0.11)",
     items: [
+      { key: "REVIEW_CALENDAR",   label: "Calendario" },
       { key: "REVIEW_ACCOUNTS",   label: "Cuentas" },
       { key: "REVIEW_TRADES",     label: "Trades" },
       { key: "REVIEW_METRICS",    label: "Métricas" },
-      { key: "REVIEW_CALENDAR",   label: "Calendario" },
       { key: "REVIEW_STRATEGIES", label: "Estrategias" },
     ],
   },
