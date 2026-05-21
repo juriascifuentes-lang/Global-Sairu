@@ -184,6 +184,7 @@ function App() {
   const [isReviewEditing, setIsReviewEditing] = useState(false)
   const now = new Date()
   const [reviewCalendarMonth, setReviewCalendarMonth] = useState({ year: now.getFullYear(), month: now.getMonth() })
+  const [reviewCalendarFilterAccounts, setReviewCalendarFilterAccounts] = useState([])
 
   const resetReviewForm = () => {
     setReviewForm({ ...defaultForm, date: new Date().toISOString().split("T")[0] })
@@ -921,8 +922,17 @@ function App() {
         {/* ─── REVIEW: CALENDARIO ─── */}
         {activePage === "REVIEW_CALENDAR" && (() => {
           const reviewActiveAccount = selectedReviewAccountId ? reviewAccounts.find((a) => String(a.id) === selectedReviewAccountId) : null
-          const displayedReviewTrades = reviewActiveAccount ? reviewTrades.filter((t) => t.account === reviewActiveAccount.name) : reviewTrades
+          const baseReviewTrades = reviewActiveAccount ? reviewTrades.filter((t) => t.account === reviewActiveAccount.name) : reviewTrades
+          const displayedReviewTrades = reviewCalendarFilterAccounts.length === 0
+            ? baseReviewTrades
+            : baseReviewTrades.filter((t) => reviewCalendarFilterAccounts.includes(t.account))
           const reviewAccountSizeMap = Object.fromEntries(reviewAccounts.map((a) => [a.name, parseAccountSize(a.size)]))
+          const calendarAccountOptions = [...new Set(baseReviewTrades.map((t) => t.account).filter(Boolean))]
+          const toggleCalendarAccount = (name) => {
+            setReviewCalendarFilterAccounts((prev) =>
+              prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+            )
+          }
 
           // Stats por cuenta para el mes visible
           const { year: calYear, month: calMonth } = reviewCalendarMonth
@@ -985,9 +995,45 @@ function App() {
 
           return (
             <div style={{ display: "grid", gap: "20px" }}>
-              <div>
-                <p style={{ margin: 0, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.18em", fontSize: "10px" }}>Revisión · Calendario</p>
-                <h1 style={{ margin: "8px 0 4px", fontSize: "34px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.02em" }}>Calendario</h1>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "12px" }}>
+                <div>
+                  <p style={{ margin: 0, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.18em", fontSize: "10px" }}>Revisión · Calendario</p>
+                  <h1 style={{ margin: "8px 0 4px", fontSize: "34px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.02em" }}>Calendario</h1>
+                </div>
+                {calendarAccountOptions.length > 1 && (
+                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center", paddingBottom: "6px" }}>
+                    <button
+                      onClick={() => setReviewCalendarFilterAccounts([])}
+                      style={{
+                        padding: "5px 14px", borderRadius: "999px", fontSize: "12px", fontWeight: "600", cursor: "pointer", border: "1px solid",
+                        background: reviewCalendarFilterAccounts.length === 0 ? "rgba(168,85,247,0.18)" : "transparent",
+                        borderColor: reviewCalendarFilterAccounts.length === 0 ? "rgba(168,85,247,0.5)" : "var(--border-card)",
+                        color: reviewCalendarFilterAccounts.length === 0 ? "#a855f7" : "var(--text-muted)",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      Todas
+                    </button>
+                    {calendarAccountOptions.map((name) => {
+                      const active = reviewCalendarFilterAccounts.includes(name)
+                      return (
+                        <button
+                          key={name}
+                          onClick={() => toggleCalendarAccount(name)}
+                          style={{
+                            padding: "5px 14px", borderRadius: "999px", fontSize: "12px", fontWeight: "600", cursor: "pointer", border: "1px solid",
+                            background: active ? "rgba(16,185,129,0.15)" : "transparent",
+                            borderColor: active ? "rgba(16,185,129,0.45)" : "var(--border-card)",
+                            color: active ? "#10b981" : "var(--text-muted)",
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          {name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Métricas de revisión */}
