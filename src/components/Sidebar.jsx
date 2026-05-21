@@ -188,7 +188,6 @@ const navGroups = [
       { key: "REVIEW_TRADES",       label: "Trades" },
       { key: "REVIEW_METRICS",      label: "Métricas" },
       { key: "REVIEW_STRATEGIES",   label: "Estrategias" },
-      { key: "REVIEW_COMPARATIVE",  label: "Comparativa", dividerBefore: true },
     ],
   },
 ]
@@ -565,7 +564,7 @@ export function Sidebar({
   const [collapsed, setCollapsed] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
-  const [openGroups, setOpenGroups] = useState({ analisis: true, finanzas: false, herramientas: false })
+  const [openGroups, setOpenGroups] = useState({})
 
   const toggleGroup = (id) => setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }))
 
@@ -866,6 +865,40 @@ export function Sidebar({
             </div>
           )
         })}
+
+        {/* Comparativa — ítem standalone de Modo Revisión */}
+        {(() => {
+          const isActive = activePage === "REVIEW_COMPARATIVE"
+          return (
+            <div style={{ marginTop: "6px" }}>
+              <div style={{ margin: "8px 0 6px", borderTop: "1px solid rgba(168,85,247,0.2)", position: "relative" }}>
+                <span style={{
+                  position: "absolute", top: "-9px", left: "10px",
+                  background: "var(--sidebar-bg)", padding: "0 6px",
+                  fontSize: "9px", fontWeight: "700", letterSpacing: "0.15em",
+                  color: "#a855f7", textTransform: "uppercase",
+                }}>Modo Revisión</span>
+              </div>
+              <button
+                onClick={() => { onNavigate("REVIEW_COMPARATIVE"); if (isMobile) onClose() }}
+                style={{
+                  width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: "10px", border: "none",
+                  background: isActive ? "rgba(168,85,247,0.11)" : "transparent",
+                  color: isActive ? "#a855f7" : "var(--text-muted)",
+                  cursor: "pointer", fontSize: "13px", fontWeight: isActive ? "600" : "500",
+                  display: "flex", alignItems: "center", gap: "10px",
+                  transition: "background 0.12s, color 0.12s",
+                }}
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--nav-hover)" }}
+                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent" }}
+              >
+                <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.65 }}>{navIcons.REVIEW_COMPARATIVE}</span>
+                Comparativa
+              </button>
+            </div>
+          )
+        })()}
+
       </nav>
 
 
