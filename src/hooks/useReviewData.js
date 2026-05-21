@@ -202,13 +202,34 @@ export function useReviewData(userId, showToast) {
 
   const updateAccount = async (updated) => {
     const backup = accounts.find((a) => a.id === updated.id)
+    const nameChanged = backup && backup.name !== updated.name
+
     setAccounts((prev) => prev.map((a) => a.id === updated.id ? updated : a))
+    if (nameChanged) setTrades((prev) => prev.map((t) => t.account === backup.name ? { ...t, account: updated.name } : t))
+
     const { id: _id, ...updatePayload } = fromAccount(updated, userId)
     const { error } = await supabase.from("review_accounts").update(updatePayload).eq("id", updated.id)
     if (error) {
       console.error("[review updateAccount]", error)
-      if (backup) setAccounts((prev) => prev.map((a) => a.id === updated.id ? backup : a))
+      if (backup) {
+        setAccounts((prev) => prev.map((a) => a.id === updated.id ? backup : a))
+        if (nameChanged) setTrades((prev) => prev.map((t) => t.account === updated.name ? { ...t, account: backup.name } : t))
+      }
       showToast("No se pudo actualizar la cuenta.")
+      return
+    }
+
+    if (nameChanged) {
+      const { error: tradesErr } = await supabase
+        .from("review_trades")
+        .update({ account: updated.name })
+        .eq("user_id", userId)
+        .eq("account", backup.name)
+      if (tradesErr) {
+        console.error("[review updateAccount trades rename]", tradesErr)
+        setTrades((prev) => prev.map((t) => t.account === updated.name ? { ...t, account: backup.name } : t))
+        showToast("Cuenta actualizada pero no se pudieron renombrar los trades.")
+      }
     }
   }
 
