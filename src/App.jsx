@@ -1002,7 +1002,7 @@ function App() {
                       </div>
                       <span style={{ color: reviewEquityColor, fontWeight: "800", fontSize: "22px", letterSpacing: "-0.02em" }}>{reviewEquityLabel}</span>
                     </div>
-                    <div style={{ height: "220px" }}>
+                    <div style={{ height: "220px", display: "flex", flexDirection: "column" }}>
                       <EquityCurve trades={displayedReviewTrades} showPct={showPct} baseCapital={reviewBaseCapital} accountSizeMap={reviewAccountSizeMap} />
                     </div>
                   </div>
