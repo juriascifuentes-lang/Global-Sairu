@@ -409,7 +409,7 @@ function DayModal({ dateLabel, dayTrades, onClose }) {
   )
 }
 
-export function CalendarPanel({ trades, showPct = false, accountSizeMap = {}, isMobile = false }) {
+export function CalendarPanel({ trades, showPct = false, accountSizeMap = {}, isMobile = false, onMonthChange }) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState(null)
 
@@ -476,7 +476,11 @@ export function CalendarPanel({ trades, showPct = false, accountSizeMap = {}, is
   const monthPct = Object.values(pctsByDay).reduce((sum, v) => sum + v, 0)
   const monthHasTrades = Object.keys(profitsByDay).length > 0
 
-  const handleChangeMonth = (offset) => setCurrentMonth(new Date(year, month + offset, 1))
+  const handleChangeMonth = (offset) => {
+    const next = new Date(year, month + offset, 1)
+    setCurrentMonth(next)
+    onMonthChange?.({ year: next.getFullYear(), month: next.getMonth() })
+  }
 
   // fmtAmt: en modo % usa la suma de %s por-trade ya calculada; en $ usa profit directo
   const fmtAmt = (profit, pct) => {

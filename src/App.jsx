@@ -182,6 +182,8 @@ function App() {
   const [reviewForm, setReviewForm] = useState(defaultForm)
   const [showReviewTradeForm, setShowReviewTradeForm] = useState(false)
   const [isReviewEditing, setIsReviewEditing] = useState(false)
+  const now = new Date()
+  const [reviewCalendarMonth, setReviewCalendarMonth] = useState({ year: now.getFullYear(), month: now.getMonth() })
 
   const resetReviewForm = () => {
     setReviewForm({ ...defaultForm, date: new Date().toISOString().split("T")[0] })
@@ -921,13 +923,67 @@ function App() {
           const reviewActiveAccount = selectedReviewAccountId ? reviewAccounts.find((a) => String(a.id) === selectedReviewAccountId) : null
           const displayedReviewTrades = reviewActiveAccount ? reviewTrades.filter((t) => t.account === reviewActiveAccount.name) : reviewTrades
           const reviewAccountSizeMap = Object.fromEntries(reviewAccounts.map((a) => [a.name, parseAccountSize(a.size)]))
+
+          // Stats por cuenta para el mes visible
+          const { year: calYear, month: calMonth } = reviewCalendarMonth
+          const monthName = new Date(calYear, calMonth, 1).toLocaleString("es-ES", { month: "long", year: "numeric" })
+          const tradesInMonth = displayedReviewTrades.filter((t) => {
+            if (!t.date) return false
+            const [y, m] = t.date.split("-").map(Number)
+            return y === calYear && m - 1 === calMonth
+          })
+          const accountNames = [...new Set(tradesInMonth.map((t) => t.account).filter(Boolean))]
+          const accountStats = accountNames.map((name) => {
+            const ts = tradesInMonth.filter((t) => t.account === name)
+            const total = ts.reduce((s, t) => s + Number(t.profit || 0), 0)
+            const wins = ts.filter((t) => Number(t.profit) > 0).length
+            return { name, total, wins, count: ts.length, winRate: ts.length > 0 ? (wins / ts.length) * 100 : 0 }
+          })
+
           return (
             <div style={{ display: "grid", gap: "20px" }}>
               <div>
                 <p style={{ margin: 0, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.18em", fontSize: "10px" }}>Revisión · Calendario</p>
                 <h1 style={{ margin: "8px 0 4px", fontSize: "34px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.02em" }}>Calendario</h1>
               </div>
-              <CalendarPanel trades={displayedReviewTrades} showPct={showPct} accountSizeMap={reviewAccountSizeMap} isMobile={isMobile} />
+              <CalendarPanel
+                trades={displayedReviewTrades}
+                showPct={showPct}
+                accountSizeMap={reviewAccountSizeMap}
+                isMobile={isMobile}
+                onMonthChange={setReviewCalendarMonth}
+              />
+
+              {/* Resumen por cuenta del mes */}
+              {accountStats.length > 0 && (
+                <div>
+                  <div style={{ fontSize: "10px", color: "#a855f7", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: "12px" }}>
+                    Resumen por cuenta · {monthName}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "12px" }}>
+                    {accountStats.map(({ name, total, count, winRate }) => (
+                      <div key={name} style={{
+                        background: "var(--card-bg)", borderRadius: "16px",
+                        border: "1px solid rgba(168,85,247,0.2)",
+                        padding: "16px 18px",
+                      }}>
+                        <div style={{ fontSize: "11px", fontWeight: "700", color: "#a855f7", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                          {name}
+                        </div>
+                        <div style={{ fontSize: "22px", fontWeight: "800", color: total >= 0 ? "#10b981" : "#f87171", letterSpacing: "-0.02em", marginBottom: "6px" }}>
+                          {total >= 0 ? "+" : ""}${Math.abs(total).toFixed(0)}
+                        </div>
+                        <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "var(--text-muted)" }}>
+                          <span>{count} trade{count !== 1 ? "s" : ""}</span>
+                          <span style={{ color: winRate >= 50 ? "#10b981" : "#f87171", fontWeight: "600" }}>
+                            {winRate.toFixed(0)}% WR
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )
         })()}
