@@ -112,18 +112,40 @@ const moonIcon = (
   </svg>
 )
 
-const navItems = [
+const navGroups = [
+  {
+    id: "analisis",
+    label: "Análisis",
+    items: [
+      { key: "TRADES",     label: "Trades" },
+      { key: "METRICS",    label: "Métricas" },
+      { key: "CALENDAR",   label: "Calendario" },
+      { key: "STRATEGIES", label: "Estrategias" },
+    ],
+  },
+  {
+    id: "finanzas",
+    label: "Finanzas",
+    items: [
+      { key: "ACCOUNTS",     label: "Cuentas" },
+      { key: "WITHDRAWALS",  label: "Retiros" },
+      { key: "ROI_ACCOUNTS", label: "ROI de Cuentas" },
+    ],
+  },
+  {
+    id: "herramientas",
+    label: "Herramientas",
+    items: [
+      { key: "IMPORT",       label: "Importar" },
+      { key: "COPY_TRADING", label: "Copiador" },
+      { key: "CONNECT_MT5",  label: "Conectar" },
+    ],
+  },
+]
+
+const allNavItems = [
   { key: "DASHBOARD", label: "Dashboard" },
-  { key: "TRADES", label: "Trades" },
-  { key: "METRICS", label: "Métricas" },
-  { key: "CALENDAR", label: "Calendario" },
-  { key: "STRATEGIES", label: "Estrategias" },
-  { key: "WITHDRAWALS", label: "Retiros" },
-  { key: "ROI_ACCOUNTS", label: "ROI de Cuentas" },
-  { key: "IMPORT", label: "Importar" },
-  { key: "ACCOUNTS", label: "Cuentas" },
-  { key: "COPY_TRADING", label: "Copiador" },
-  { key: "CONNECT_MT5", label: "Conectar" },
+  ...navGroups.flatMap((g) => g.items),
 ]
 
 const lockIcon = (
@@ -493,6 +515,18 @@ export function Sidebar({
   const [collapsed, setCollapsed] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
+  const [openGroups, setOpenGroups] = useState({ analisis: true, finanzas: false, herramientas: false })
+
+  const toggleGroup = (id) => setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }))
+
+  useEffect(() => {
+    for (const group of navGroups) {
+      if (group.items.some((item) => item.key === activePage)) {
+        setOpenGroups((prev) => ({ ...prev, [group.id]: true }))
+        break
+      }
+    }
+  }, [activePage])
 
   if (collapsed && !isMobile) {
     return (
@@ -543,7 +577,7 @@ export function Sidebar({
 
         {/* Nav icons only */}
         <nav style={{ display: "flex", flexDirection: "column", gap: "4px", width: "100%" }}>
-          {[...navItems, ...(isAdmin ? [{ key: "ADMIN", label: "Usuarios" }] : [])].map((item) => {
+          {[...allNavItems, ...(isAdmin ? [{ key: "ADMIN", label: "Usuarios" }] : [])].map((item) => {
             const isActive = activePage === item.key
             const isLocked = item.key === "COPY_TRADING" && userLevel === 1 && !isAdmin
             return (
@@ -654,65 +688,110 @@ export function Sidebar({
       />
 
       {/* Nav label */}
-      <div
-        style={{
-          fontSize: "10px",
-          color: "var(--text-muted)",
-          textTransform: "uppercase",
-          letterSpacing: "0.14em",
-          marginBottom: "8px",
-          paddingLeft: "6px",
-        }}
-      >
+      <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: "8px", paddingLeft: "6px" }}>
         Navegación
       </div>
 
-      {/* Nav items */}
-      <nav style={{ display: "flex", flexDirection: "column", gap: "3px", marginBottom: "auto" }}>
-        {[...navItems, ...(isAdmin ? [{ key: "ADMIN", label: "Usuarios" }] : [])].map((item) => {
-          const isActive = activePage === item.key
-          const isLocked = item.key === "COPY_TRADING" && userLevel === 1 && !isAdmin
+      <nav style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "auto" }}>
+
+        {/* Dashboard — standalone */}
+        {(() => {
+          const isActive = activePage === "DASHBOARD"
           return (
             <button
-              key={item.key}
-              onClick={() => { if (!isLocked) { onNavigate(item.key); if (isMobile) onClose() } }}
-              title={isLocked ? "Requiere Nivel 2" : undefined}
+              onClick={() => { onNavigate("DASHBOARD"); if (isMobile) onClose() }}
               style={{
-                width: "100%",
-                textAlign: "left",
-                padding: "10px 14px",
-                borderRadius: "12px",
-                border: "none",
-                background: isActive ? "rgba(16, 185, 129, 0.11)" : "transparent",
+                width: "100%", textAlign: "left", padding: "10px 14px", borderRadius: "12px", border: "none",
+                background: isActive ? "rgba(16,185,129,0.11)" : "transparent",
                 color: isActive ? "#10b981" : "var(--text-muted)",
-                cursor: isLocked ? "not-allowed" : "pointer",
-                fontSize: "13.5px",
-                fontWeight: isActive ? "600" : "500",
-                display: "flex",
-                alignItems: "center",
-                gap: "11px",
-                transition: "background 0.12s, color 0.12s",
-                opacity: isLocked ? 0.45 : 1,
+                cursor: "pointer", fontSize: "13.5px", fontWeight: isActive ? "600" : "500",
+                display: "flex", alignItems: "center", gap: "11px", transition: "background 0.12s, color 0.12s",
               }}
-              onMouseEnter={(e) => {
-                if (!isActive && !isLocked) {
-                  e.currentTarget.style.background = "var(--nav-hover)"
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.background = "transparent"
-              }}
+              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--nav-hover)" }}
+              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent" }}
             >
-              <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.65 }}>
-                {navIcons[item.key]}
-              </span>
-              {item.label}
-              {isLocked && (
-                <span style={{ marginLeft: "auto", opacity: 0.7 }}>
-                  {lockIcon}
-                </span>
-              )}
+              <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.65 }}>{navIcons.DASHBOARD}</span>
+              Dashboard
             </button>
+          )
+        })()}
+
+        {/* Grupos colapsables */}
+        {[
+          ...navGroups,
+          ...(isAdmin ? [{ id: "sistema", label: "Sistema", items: [{ key: "ADMIN", label: "Usuarios" }] }] : []),
+        ].map((group) => {
+          const isOpen = openGroups[group.id] ?? false
+          const groupHasActive = group.items.some((item) => item.key === activePage)
+          return (
+            <div key={group.id} style={{ marginTop: "6px" }}>
+              {/* Cabecera del grupo */}
+              <button
+                onClick={() => toggleGroup(group.id)}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "5px 10px 5px 8px", borderRadius: "9px", border: "none",
+                  background: "transparent", cursor: "pointer", transition: "background 0.12s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--nav-hover)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+              >
+                <span style={{
+                  fontSize: "10px", fontWeight: "700", textTransform: "uppercase",
+                  letterSpacing: "0.12em",
+                  color: groupHasActive ? "#10b981" : "var(--text-muted)",
+                }}>
+                  {group.label}
+                </span>
+                <svg
+                  width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  style={{
+                    color: groupHasActive ? "#10b981" : "var(--text-muted)",
+                    transition: "transform 0.18s",
+                    transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+
+              {/* Items del grupo */}
+              {isOpen && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px", paddingLeft: "8px", marginTop: "2px" }}>
+                  {group.items.map((item) => {
+                    const isActive = activePage === item.key
+                    const isLocked = item.key === "COPY_TRADING" && userLevel === 1 && !isAdmin
+                    return (
+                      <button
+                        key={item.key}
+                        onClick={() => { if (!isLocked) { onNavigate(item.key); if (isMobile) onClose() } }}
+                        title={isLocked ? "Requiere Nivel 2" : undefined}
+                        style={{
+                          width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: "10px", border: "none",
+                          background: isActive ? "rgba(16,185,129,0.11)" : "transparent",
+                          color: isActive ? "#10b981" : "var(--text-muted)",
+                          cursor: isLocked ? "not-allowed" : "pointer",
+                          fontSize: "13px", fontWeight: isActive ? "600" : "500",
+                          display: "flex", alignItems: "center", gap: "10px",
+                          transition: "background 0.12s, color 0.12s",
+                          opacity: isLocked ? 0.45 : 1,
+                        }}
+                        onMouseEnter={(e) => { if (!isActive && !isLocked) e.currentTarget.style.background = "var(--nav-hover)" }}
+                        onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent" }}
+                      >
+                        <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.65 }}>
+                          {navIcons[item.key]}
+                        </span>
+                        {item.label}
+                        {isLocked && <span style={{ marginLeft: "auto", opacity: 0.7 }}>{lockIcon}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           )
         })}
       </nav>
