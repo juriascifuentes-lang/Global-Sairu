@@ -156,6 +156,26 @@ function DualEquityCurve({ realTrades, reviewTrades }) {
   )
 }
 
+// ── helpers para semanas ──────────────────────────────────────────────────────
+
+const getWeekMonday = (dateStr) => {
+  const [y, m, d] = dateStr.split("-").map(Number)
+  const date = new Date(y, m - 1, d)
+  const day = date.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  return new Date(y, m - 1, d + diff)
+}
+
+const fmtWeekRange = (monday) => {
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const mes = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"]
+  const sd = monday.getDate(), ed = sunday.getDate()
+  return monday.getMonth() === sunday.getMonth()
+    ? `${sd} – ${ed} ${mes[monday.getMonth()]}`
+    : `${sd} ${mes[monday.getMonth()]} – ${ed} ${mes[sunday.getMonth()]}`
+}
+
 // ── ComparativeCalendar ───────────────────────────────────────────────────────
 
 function ComparativeCalendar({ realTrades, reviewTrades }) {
@@ -172,8 +192,11 @@ function ComparativeCalendar({ realTrades, reviewTrades }) {
         if (!t.date) continue
         const [y, m] = t.date.split("-").map(Number)
         if (y !== year || m - 1 !== month) continue
-        if (!map[t.date]) map[t.date] = { real: 0, review: 0 }
-        map[t.date][key] += Number(t.profit || 0)
+        if (!map[t.date]) map[t.date] = { real: 0, review: 0, realCount: 0, reviewCount: 0, realWins: 0, reviewWins: 0 }
+        const p = Number(t.profit || 0)
+        map[t.date][key] += p
+        map[t.date][key + "Count"]++
+        if (p > 0) map[t.date][key + "Wins"]++
       }
     }
     add(realTrades, "real")
@@ -192,101 +215,217 @@ function ComparativeCalendar({ realTrades, reviewTrades }) {
     return { dayNum, dk, ...(dayMap[dk] || {}) }
   })
 
+  // Resumen semanal
+  const weekMap = useMemo(() => {
+    const map = {}
+    const addToWeek = (trades, key) => {
+      for (const t of trades) {
+        if (!t.date) continue
+        const [y, m] = t.date.split("-").map(Number)
+        if (y !== year || m - 1 !== month) continue
+        const monday = getWeekMonday(t.date)
+        const wk = monday.toISOString().slice(0, 10)
+        if (!map[wk]) map[wk] = { monday, real: 0, review: 0, realCount: 0, reviewCount: 0, realWins: 0, reviewWins: 0 }
+        const p = Number(t.profit || 0)
+        map[wk][key] += p
+        map[wk][key + "Count"]++
+        if (p > 0) map[wk][key + "Wins"]++
+      }
+    }
+    addToWeek(realTrades, "real")
+    addToWeek(reviewTrades, "review")
+    return map
+  }, [realTrades, reviewTrades, year, month])
+
+  const weekKeys = Object.keys(weekMap).sort()
+
+  const totalReal = weekKeys.reduce((s, k) => s + weekMap[k].real, 0)
+  const totalReview = weekKeys.reduce((s, k) => s + weekMap[k].review, 0)
+  const totalRealCount = weekKeys.reduce((s, k) => s + weekMap[k].realCount, 0)
+  const totalReviewCount = weekKeys.reduce((s, k) => s + weekMap[k].reviewCount, 0)
+  const totalRealWins = weekKeys.reduce((s, k) => s + weekMap[k].realWins, 0)
+  const totalReviewWins = weekKeys.reduce((s, k) => s + weekMap[k].reviewWins, 0)
+
   const DOW = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
+  const pnlColor = (v) => v > 0 ? "#10b981" : v < 0 ? "#f87171" : "var(--text-muted)"
+  const deltaColor = (v) => v > 0 ? "#a855f7" : v < 0 ? "#10b981" : "var(--text-muted)"
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <div>
           <p style={{ margin: 0, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em", fontSize: "10px" }}>Calendario Comparativo</p>
-          <h3 style={{ margin: "4px 0 0", fontSize: "18px", fontWeight: "700", color: "var(--text-1)", textTransform: "capitalize" }}>{monthName}</h3>
+          <h3 style={{ margin: "4px 0 0", fontSize: "20px", fontWeight: "700", color: "var(--text-1)", textTransform: "capitalize" }}>{monthName}</h3>
         </div>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button
-            onClick={() => setCalMonth(({ year: y, month: m }) => m === 0 ? { year: y - 1, month: 11 } : { year: y, month: m - 1 })}
-            style={{ width: "32px", height: "32px", border: "1px solid var(--border-nav)", background: "var(--card-bg)", color: "var(--text-1)", borderRadius: "8px", cursor: "pointer", fontSize: "14px" }}
-          >←</button>
-          <button
-            onClick={() => setCalMonth(({ year: y, month: m }) => m === 11 ? { year: y + 1, month: 0 } : { year: y, month: m + 1 })}
-            style={{ width: "32px", height: "32px", border: "1px solid var(--border-nav)", background: "var(--card-bg)", color: "var(--text-1)", borderRadius: "8px", cursor: "pointer", fontSize: "14px" }}
-          >→</button>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div style={{ display: "flex", gap: "14px" }}>
+            {[
+              { color: "#f87171", label: "Real" },
+              { color: "#a855f7", label: "Revisión" },
+              { borderColor: "rgba(168,85,247,0.55)", label: "Dejaste dinero" },
+              { borderColor: "rgba(16,185,129,0.55)", label: "Superaste el plan" },
+            ].map(({ color, borderColor, label }) => (
+              <span key={label} style={{ fontSize: "11px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "5px" }}>
+                <span style={{ width: "10px", height: "10px", borderRadius: "3px", flexShrink: 0, display: "inline-block",
+                  background: color || "transparent",
+                  border: borderColor ? `1.5px solid ${borderColor}` : "none",
+                }} />
+                {label}
+              </span>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button onClick={() => setCalMonth(({ year: y, month: m }) => m === 0 ? { year: y - 1, month: 11 } : { year: y, month: m - 1 })}
+              style={{ width: "30px", height: "30px", border: "1px solid var(--border-nav)", background: "var(--card-bg)", color: "var(--text-1)", borderRadius: "8px", cursor: "pointer", fontSize: "13px" }}>←</button>
+            <button onClick={() => setCalMonth(({ year: y, month: m }) => m === 11 ? { year: y + 1, month: 0 } : { year: y, month: m + 1 })}
+              style={{ width: "30px", height: "30px", border: "1px solid var(--border-nav)", background: "var(--card-bg)", color: "var(--text-1)", borderRadius: "8px", cursor: "pointer", fontSize: "13px" }}>→</button>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: "16px", marginBottom: "12px" }}>
-        <span style={{ fontSize: "11px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "5px" }}>
-          <span style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#f87171", display: "inline-block" }} /> Real
-        </span>
-        <span style={{ fontSize: "11px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "5px" }}>
-          <span style={{ width: "8px", height: "8px", borderRadius: "2px", background: "#a855f7", display: "inline-block" }} /> Revisión
-        </span>
-        <span style={{ fontSize: "11px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "5px" }}>
-          <span style={{ width: "8px", height: "8px", borderRadius: "2px", border: "1px solid rgba(168,85,247,0.6)", display: "inline-block" }} /> Dejaste dinero
-        </span>
-        <span style={{ fontSize: "11px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "5px" }}>
-          <span style={{ width: "8px", height: "8px", borderRadius: "2px", border: "1px solid rgba(16,185,129,0.6)", display: "inline-block" }} /> Superaste el plan
-        </span>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px" }}>
+      {/* Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "5px" }}>
         {DOW.map((d) => (
-          <div key={d} style={{ textAlign: "center", fontSize: "10px", color: "var(--text-muted)", padding: "4px 0", textTransform: "uppercase", letterSpacing: "0.05em" }}>{d}</div>
+          <div key={d} style={{ textAlign: "center", fontSize: "10px", color: "var(--text-muted)", padding: "4px 0 8px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: "600" }}>{d}</div>
         ))}
         {cells.map((cell, i) => {
           if (!cell) return <div key={i} />
-          const hasData = cell.real !== undefined || cell.review !== undefined
           const real = cell.real || 0
           const review = cell.review || 0
+          const hasReal = real !== 0
+          const hasReview = review !== 0
+          const hasAny = hasReal || hasReview
           const delta = review - real
 
           let borderColor = "var(--border-nav)"
-          if (hasData && (real !== 0 || review !== 0)) {
-            if (delta > 20) borderColor = "rgba(168,85,247,0.5)"
-            else if (delta < -20) borderColor = "rgba(16,185,129,0.5)"
+          let bgAccent = "transparent"
+          if (hasAny) {
+            if (delta > 20) { borderColor = "rgba(168,85,247,0.45)"; bgAccent = "rgba(168,85,247,0.04)" }
+            else if (delta < -20) { borderColor = "rgba(16,185,129,0.45)"; bgAccent = "rgba(16,185,129,0.04)" }
           }
 
           return (
             <div key={i} style={{
               border: `1px solid ${borderColor}`,
-              borderRadius: "8px",
-              background: "var(--card-bg)",
-              padding: "5px 4px",
-              minHeight: "62px",
+              borderRadius: "10px",
+              background: hasAny ? bgAccent : "var(--card-bg)",
+              minHeight: "88px",
               display: "flex",
               flexDirection: "column",
-              gap: "3px",
+              overflow: "hidden",
             }}>
-              <span style={{ fontSize: "10px", color: "var(--text-muted)", textAlign: "center" }}>{cell.dayNum}</span>
-              {hasData && (real !== 0 || review !== 0) && (
-                <>
-                  <div style={{
-                    background: real > 0 ? "rgba(16,185,129,0.15)" : real < 0 ? "rgba(248,113,113,0.12)" : "transparent",
-                    borderRadius: "4px",
-                    padding: "2px 3px",
-                    fontSize: "9px",
-                    fontWeight: "700",
-                    color: real > 0 ? "#10b981" : real < 0 ? "#f87171" : "var(--text-muted)",
-                    textAlign: "center",
-                  }}>
-                    {real !== 0 ? fmtPnl(real) : "–"}
+              {/* Día */}
+              <div style={{ padding: "8px 10px 6px", borderBottom: hasAny ? "1px solid var(--border-nav)" : "none" }}>
+                <span style={{ fontSize: "12px", fontWeight: "600", color: hasAny ? "var(--text-1)" : "var(--text-muted)" }}>{cell.dayNum}</span>
+              </div>
+
+              {/* Valores */}
+              {hasAny && (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: "4px", padding: "6px 0" }}>
+                  {/* Real */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "0", paddingLeft: "0" }}>
+                    <div style={{ width: "3px", alignSelf: "stretch", background: "#f87171", borderRadius: "0 2px 2px 0", flexShrink: 0 }} />
+                    <span style={{
+                      paddingLeft: "7px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      color: hasReal ? pnlColor(real) : "var(--text-muted)",
+                      opacity: hasReal ? 1 : 0.35,
+                    }}>
+                      {hasReal ? fmtPnl(real) : "–"}
+                    </span>
                   </div>
-                  <div style={{
-                    background: review > 0 ? "rgba(168,85,247,0.12)" : review < 0 ? "rgba(248,113,113,0.1)" : "transparent",
-                    borderRadius: "4px",
-                    padding: "2px 3px",
-                    fontSize: "9px",
-                    fontWeight: "700",
-                    color: review > 0 ? "#a855f7" : review < 0 ? "#f87171" : "var(--text-muted)",
-                    textAlign: "center",
-                  }}>
-                    {review !== 0 ? fmtPnl(review) : "–"}
+                  {/* Revisión */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "0" }}>
+                    <div style={{ width: "3px", alignSelf: "stretch", background: "#a855f7", borderRadius: "0 2px 2px 0", flexShrink: 0 }} />
+                    <span style={{
+                      paddingLeft: "7px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      color: hasReview ? (review > 0 ? "#a855f7" : "#f87171") : "var(--text-muted)",
+                      opacity: hasReview ? 1 : 0.35,
+                    }}>
+                      {hasReview ? fmtPnl(review) : "–"}
+                    </span>
                   </div>
-                </>
+                </div>
               )}
             </div>
           )
         })}
       </div>
+
+      {/* Resumen semanal */}
+      {weekKeys.length > 0 && (
+        <div style={{ marginTop: "32px" }}>
+          <p style={{ margin: "0 0 4px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", fontSize: "10px", fontWeight: "600" }}>Desglose Mensual</p>
+          <h3 style={{ margin: "0 0 16px", fontSize: "18px", fontWeight: "700", color: "var(--text-1)", textTransform: "capitalize" }}>{monthName}</h3>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border-nav)" }}>
+                  {["Semana", "Real", "Revisión", "Delta"].map((h, i) => (
+                    <th key={h} style={{
+                      padding: "8px 12px",
+                      textAlign: i === 0 ? "left" : "right",
+                      fontSize: "10px",
+                      fontWeight: "600",
+                      color: i === 1 ? "#f87171" : i === 2 ? "#a855f7" : "var(--text-muted)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.1em",
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {weekKeys.map((wk) => {
+                  const w = weekMap[wk]
+                  const wDelta = w.review - w.real
+                  const realWR = w.realCount > 0 ? Math.round((w.realWins / w.realCount) * 100) : null
+                  const revWR = w.reviewCount > 0 ? Math.round((w.reviewWins / w.reviewCount) * 100) : null
+                  return (
+                    <tr key={wk} style={{ borderBottom: "1px solid rgba(148,163,184,0.08)" }}>
+                      <td style={{ padding: "12px 12px", color: "var(--text-muted)", fontSize: "13px" }}>
+                        {fmtWeekRange(w.monday)}
+                      </td>
+                      <td style={{ padding: "12px 12px", textAlign: "right" }}>
+                        <div style={{ color: pnlColor(w.real), fontWeight: "700" }}>{w.real !== 0 ? fmtPnl(w.real) : "–"}</div>
+                        {realWR !== null && <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>{w.realCount} trades · {realWR}% WR</div>}
+                      </td>
+                      <td style={{ padding: "12px 12px", textAlign: "right" }}>
+                        <div style={{ color: w.review > 0 ? "#a855f7" : w.review < 0 ? "#f87171" : "var(--text-muted)", fontWeight: "700" }}>{w.review !== 0 ? fmtPnl(w.review) : "–"}</div>
+                        {revWR !== null && <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>{w.reviewCount} trades · {revWR}% WR</div>}
+                      </td>
+                      <td style={{ padding: "12px 12px", textAlign: "right" }}>
+                        <div style={{ color: deltaColor(wDelta), fontWeight: "700" }}>{wDelta !== 0 ? fmtPnl(wDelta) : "–"}</div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{ borderTop: "2px solid var(--border-nav)" }}>
+                  <td style={{ padding: "14px 12px", fontWeight: "700", color: "var(--text-1)", fontSize: "13px" }}>Total Mes</td>
+                  <td style={{ padding: "14px 12px", textAlign: "right" }}>
+                    <div style={{ color: pnlColor(totalReal), fontWeight: "800", fontSize: "15px" }}>{totalReal !== 0 ? fmtPnl(totalReal) : "–"}</div>
+                    {totalRealCount > 0 && <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>{totalRealCount} trades · {Math.round((totalRealWins / totalRealCount) * 100)}% WR</div>}
+                  </td>
+                  <td style={{ padding: "14px 12px", textAlign: "right" }}>
+                    <div style={{ color: totalReview > 0 ? "#a855f7" : totalReview < 0 ? "#f87171" : "var(--text-muted)", fontWeight: "800", fontSize: "15px" }}>{totalReview !== 0 ? fmtPnl(totalReview) : "–"}</div>
+                    {totalReviewCount > 0 && <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>{totalReviewCount} trades · {Math.round((totalReviewWins / totalReviewCount) * 100)}% WR</div>}
+                  </td>
+                  <td style={{ padding: "14px 12px", textAlign: "right" }}>
+                    <div style={{ color: deltaColor(totalReview - totalReal), fontWeight: "800", fontSize: "15px" }}>{(totalReview - totalReal) !== 0 ? fmtPnl(totalReview - totalReal) : "–"}</div>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
