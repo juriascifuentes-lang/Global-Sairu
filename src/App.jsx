@@ -975,12 +975,40 @@ function App() {
             return { name, total, wins, count: ts.length, winRate: ts.length > 0 ? (wins / ts.length) * 100 : 0 }
           })
 
+          const reviewAccountsWithTrades = reviewActiveAccount ? [reviewActiveAccount] : reviewAccounts.filter((a) => displayedReviewTrades.some((t) => t.account === a.name))
+          const reviewBaseCapital = reviewAccountsWithTrades.length === 1
+            ? parseAccountSize(reviewAccountsWithTrades[0].size)
+            : reviewAccountsWithTrades.reduce((sum, a) => sum + parseAccountSize(a.size), 0)
+          const reviewTotalProfit = displayedReviewTrades.reduce((s, t) => s + Number(t.profit || 0), 0)
+          const reviewEquityLabel = `${reviewTotalProfit >= 0 ? "+" : ""}$${reviewTotalProfit.toFixed(2)}`
+          const reviewEquityColor = reviewTotalProfit >= 0 ? "#10b981" : "#f87171"
+
           return (
             <div style={{ display: "grid", gap: "20px" }}>
               <div>
                 <p style={{ margin: 0, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.18em", fontSize: "10px" }}>Revisión · Calendario</p>
                 <h1 style={{ margin: "8px 0 4px", fontSize: "34px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.02em" }}>Calendario</h1>
               </div>
+
+              {/* Métricas de revisión */}
+              {displayedReviewTrades.length > 0 && (
+                <>
+                  <Statistics trades={displayedReviewTrades} showPct={showPct} baseCapital={reviewBaseCapital} accountSizeMap={reviewAccountSizeMap} />
+                  <div style={{ background: "var(--card-bg)", borderRadius: "20px", padding: "20px 22px", border: "1px solid var(--border-card)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                      <div>
+                        <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.14em" }}>Rendimiento acumulado · Revisión</div>
+                        <h3 style={{ margin: "3px 0 0", color: "var(--text-1)", fontSize: "15px", fontWeight: "700" }}>Curva de Equity</h3>
+                      </div>
+                      <span style={{ color: reviewEquityColor, fontWeight: "800", fontSize: "22px", letterSpacing: "-0.02em" }}>{reviewEquityLabel}</span>
+                    </div>
+                    <div style={{ height: "220px" }}>
+                      <EquityCurve trades={displayedReviewTrades} showPct={showPct} baseCapital={reviewBaseCapital} accountSizeMap={reviewAccountSizeMap} />
+                    </div>
+                  </div>
+                </>
+              )}
+
               <CalendarPanel
                 trades={displayedReviewTrades}
                 showPct={showPct}
