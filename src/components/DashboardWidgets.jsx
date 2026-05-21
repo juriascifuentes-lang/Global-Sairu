@@ -1,6 +1,8 @@
 // RecentTradesWidget
 export function RecentTradesWidget({ trades, onNavigate, showPct = false, accountSizeMap = {} }) {
-  const recent = trades.slice(0, 8)
+  const recent = [...trades]
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 8)
 
   return (
     <div style={{ background: "var(--card-bg)", borderRadius: "20px", padding: "20px 22px", border: "1px solid var(--border-card)", display: "flex", flexDirection: "column" }}>

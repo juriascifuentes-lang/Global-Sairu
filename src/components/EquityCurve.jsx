@@ -182,8 +182,8 @@ export function EquityCurve({ trades, showPct = false, baseCapital = 0, accountS
               {data.zeroY > 4 && data.zeroY < 76 && (
                 <line
                   x1="0" y1={data.zeroY} x2="100" y2={data.zeroY}
-                  stroke="rgba(148,163,184,0.45)"
-                  strokeWidth="0.6"
+                  stroke="rgba(148,163,184,0.85)"
+                  strokeWidth="0.8"
                   strokeDasharray="2 2"
                   vectorEffect="non-scaling-stroke"
                 />
