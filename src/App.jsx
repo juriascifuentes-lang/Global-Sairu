@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { supabase } from "./lib/supabase"
 import { useJournalData } from "./hooks/useJournalData"
+import { useReviewData } from "./hooks/useReviewData"
 import { LoginScreen } from "./components/LoginScreen"
 import { Sidebar } from "./components/Sidebar"
 import { TradeForm } from "./components/TradeForm"
@@ -167,6 +168,42 @@ function App() {
     addWithdrawal, deleteWithdrawal,
     createStrategy, deleteStrategy,
   } = useJournalData(userId, showToast)
+
+  const {
+    trades: reviewTrades, accounts: reviewAccounts, strategies: reviewStrategies,
+    selectedAccountId: selectedReviewAccountId, setSelectedAccountId: setSelectedReviewAccountId,
+    addTrade: reviewAddTrade, deleteTrade: reviewDeleteTrade, deleteManyTrades: reviewDeleteManyTrades,
+    clearAllTrades: reviewClearAllTrades, importTrades: reviewImportTrades,
+    replaceAccountTrades: reviewReplaceAccountTrades, appendAccountTrades: reviewAppendAccountTrades,
+    createAccount: reviewCreateAccount, deleteAccount: reviewDeleteAccount, updateAccount: reviewUpdateAccount,
+    createStrategy: reviewCreateStrategy, deleteStrategy: reviewDeleteStrategy,
+  } = useReviewData(userId, showToast)
+
+  const [reviewForm, setReviewForm] = useState(defaultForm)
+  const [showReviewTradeForm, setShowReviewTradeForm] = useState(false)
+  const [isReviewEditing, setIsReviewEditing] = useState(false)
+
+  const resetReviewForm = () => {
+    setReviewForm({ ...defaultForm, date: new Date().toISOString().split("T")[0] })
+    setIsReviewEditing(false)
+  }
+
+  const handleReviewAddTrade = async () => {
+    await reviewAddTrade(reviewForm, isReviewEditing)
+    resetReviewForm()
+    setShowReviewTradeForm(false)
+  }
+
+  const editReviewTrade = (trade) => {
+    setReviewForm({ ...trade })
+    setIsReviewEditing(true)
+    setShowReviewTradeForm(true)
+    setActivePage("REVIEW_TRADES")
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const REVIEW_PAGES = ["REVIEW_TRADES", "REVIEW_METRICS", "REVIEW_CALENDAR", "REVIEW_STRATEGIES", "REVIEW_ACCOUNTS"]
+  const isReviewPage = REVIEW_PAGES.includes(activePage)
 
   const accountSizeMap = useMemo(
     () => Object.fromEntries(accounts.map((a) => [a.name, parseAccountSize(a.size)])),
@@ -344,6 +381,22 @@ function App() {
       )}
 
       <main style={{ flex: 1, padding: isMobile ? "72px 16px 80px" : "32px 40px 60px", overflowY: "auto", minWidth: 0, background: "var(--app-bg)" }}>
+
+        {/* ─── BANNER REVISIÓN ─── */}
+        {isReviewPage && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: "10px",
+            marginBottom: "24px", padding: "10px 16px",
+            background: "rgba(168,85,247,0.08)", borderRadius: "12px",
+            border: "1px solid rgba(168,85,247,0.25)",
+          }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span style={{ fontSize: "12px", fontWeight: "600", color: "#a855f7" }}>Modo Revisión</span>
+            <span style={{ fontSize: "12px", color: "rgba(168,85,247,0.7)" }}>— Los datos de esta sección son independientes al journal principal.</span>
+          </div>
+        )}
 
         {/* ─── ADMIN ─── */}
         {activePage === "ADMIN" && profile.is_admin && <AdminPanel />}
@@ -763,6 +816,129 @@ function App() {
             </>
           )
         })()}
+
+        {/* ─── REVIEW: CUENTAS ─── */}
+        {activePage === "REVIEW_ACCOUNTS" && (
+          <AccountsPanel
+            accounts={reviewAccounts}
+            trades={reviewTrades}
+            onCreateAccount={reviewCreateAccount}
+            onDeleteAccount={reviewDeleteAccount}
+            onUpdateAccount={reviewUpdateAccount}
+            onReplaceAccountTrades={reviewReplaceAccountTrades}
+            onAppendAccountTrades={reviewAppendAccountTrades}
+            showPct={showPct}
+          />
+        )}
+
+        {/* ─── REVIEW: TRADES ─── */}
+        {activePage === "REVIEW_TRADES" && (() => {
+          const reviewActiveAccount = selectedReviewAccountId
+            ? reviewAccounts.find((a) => String(a.id) === selectedReviewAccountId)
+            : null
+          const displayedReviewTrades = reviewActiveAccount
+            ? reviewTrades.filter((t) => t.account === reviewActiveAccount.name)
+            : reviewTrades
+          const reviewAccountSizeMap = Object.fromEntries(reviewAccounts.map((a) => [a.name, parseAccountSize(a.size)]))
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
+                <div>
+                  <p style={{ margin: 0, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.18em", fontSize: "10px" }}>
+                    Revisión · Registro
+                  </p>
+                  <h1 style={{ margin: "8px 0 4px", fontSize: "34px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.02em" }}>
+                    Trades
+                  </h1>
+                  <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "14px" }}>Operaciones de revisión y backtesting</p>
+                </div>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center", flexShrink: 0 }}>
+                  {displayedReviewTrades.length > 0 && (
+                    <button
+                      onClick={() => reviewClearAllTrades(reviewActiveAccount?.name)}
+                      style={{ padding: "11px 18px", borderRadius: "12px", border: "1px solid rgba(248,113,113,0.28)", background: "rgba(248,113,113,0.08)", color: "#f87171", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}
+                    >
+                      {reviewActiveAccount ? `Limpiar "${reviewActiveAccount.name}"` : "Limpiar historial"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { resetReviewForm(); setShowReviewTradeForm(true) }}
+                    style={{ padding: "11px 18px", borderRadius: "12px", border: "none", background: "linear-gradient(135deg, #a855f7, #7c3aed)", color: "#fff", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}
+                  >
+                    + Nuevo trade
+                  </button>
+                </div>
+              </div>
+              {(showReviewTradeForm || isReviewEditing) && (
+                <TradeForm
+                  form={reviewForm}
+                  setForm={setReviewForm}
+                  onAddTrade={handleReviewAddTrade}
+                  isEditing={isReviewEditing}
+                  accounts={reviewAccounts}
+                  strategies={reviewStrategies}
+                  onCancel={() => { resetReviewForm(); setShowReviewTradeForm(false) }}
+                />
+              )}
+              <TradeList
+                trades={displayedReviewTrades}
+                onEditTrade={editReviewTrade}
+                onDeleteTrade={reviewDeleteTrade}
+                onDeleteManyTrades={reviewDeleteManyTrades}
+                activeAccountName={reviewActiveAccount ? reviewActiveAccount.name : null}
+                showPct={showPct}
+                accountSizeMap={reviewAccountSizeMap}
+              />
+            </div>
+          )
+        })()}
+
+        {/* ─── REVIEW: MÉTRICAS ─── */}
+        {activePage === "REVIEW_METRICS" && (() => {
+          const reviewActiveAccount = selectedReviewAccountId ? reviewAccounts.find((a) => String(a.id) === selectedReviewAccountId) : null
+          const displayedReviewTrades = reviewActiveAccount ? reviewTrades.filter((t) => t.account === reviewActiveAccount.name) : reviewTrades
+          const reviewAccountSizeMap = Object.fromEntries(reviewAccounts.map((a) => [a.name, parseAccountSize(a.size)]))
+          const reviewAccountsWithTrades = reviewActiveAccount ? [reviewActiveAccount] : reviewAccounts.filter((a) => reviewTrades.some((t) => t.account === a.name))
+          const reviewBaseCapital = reviewAccountsWithTrades.length === 1
+            ? parseAccountSize(reviewAccountsWithTrades[0].size)
+            : reviewAccountsWithTrades.reduce((sum, a) => sum + parseAccountSize(a.size), 0)
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div>
+                <p style={{ margin: 0, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.18em", fontSize: "10px" }}>Revisión · Análisis</p>
+                <h1 style={{ margin: "8px 0 4px", fontSize: "34px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.02em" }}>Métricas</h1>
+                <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "14px" }}>Métricas de tus operaciones de revisión</p>
+              </div>
+              <MetricsPanel trades={displayedReviewTrades} showPct={showPct} baseCapital={reviewBaseCapital} accountSizeMap={reviewAccountSizeMap} />
+            </div>
+          )
+        })()}
+
+        {/* ─── REVIEW: CALENDARIO ─── */}
+        {activePage === "REVIEW_CALENDAR" && (() => {
+          const reviewActiveAccount = selectedReviewAccountId ? reviewAccounts.find((a) => String(a.id) === selectedReviewAccountId) : null
+          const displayedReviewTrades = reviewActiveAccount ? reviewTrades.filter((t) => t.account === reviewActiveAccount.name) : reviewTrades
+          const reviewAccountSizeMap = Object.fromEntries(reviewAccounts.map((a) => [a.name, parseAccountSize(a.size)]))
+          return (
+            <div style={{ display: "grid", gap: "20px" }}>
+              <div>
+                <p style={{ margin: 0, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.18em", fontSize: "10px" }}>Revisión · Calendario</p>
+                <h1 style={{ margin: "8px 0 4px", fontSize: "34px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.02em" }}>Calendario</h1>
+              </div>
+              <CalendarPanel trades={displayedReviewTrades} showPct={showPct} accountSizeMap={reviewAccountSizeMap} isMobile={isMobile} />
+            </div>
+          )
+        })()}
+
+        {/* ─── REVIEW: ESTRATEGIAS ─── */}
+        {activePage === "REVIEW_STRATEGIES" && (
+          <StrategiesPanel
+            strategies={reviewStrategies}
+            onCreateStrategy={reviewCreateStrategy}
+            onDeleteStrategy={reviewDeleteStrategy}
+          />
+        )}
+
       </main>
 
       {/* Mobile bottom nav */}

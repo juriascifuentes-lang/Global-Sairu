@@ -82,6 +82,31 @@ const navIcons = {
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
     </svg>
   ),
+  REVIEW_ACCOUNTS: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+    </svg>
+  ),
+  REVIEW_TRADES: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/>
+    </svg>
+  ),
+  REVIEW_METRICS: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+    </svg>
+  ),
+  REVIEW_CALENDAR: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+  ),
+  REVIEW_STRATEGIES: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </svg>
+  ),
 }
 
 const refreshIcon = (
@@ -116,6 +141,8 @@ const navGroups = [
   {
     id: "analisis",
     label: "Análisis",
+    color: "#10b981",
+    colorBg: "rgba(16,185,129,0.11)",
     items: [
       { key: "TRADES",     label: "Trades" },
       { key: "METRICS",    label: "Métricas" },
@@ -126,6 +153,8 @@ const navGroups = [
   {
     id: "finanzas",
     label: "Finanzas",
+    color: "#10b981",
+    colorBg: "rgba(16,185,129,0.11)",
     items: [
       { key: "ACCOUNTS",     label: "Cuentas" },
       { key: "WITHDRAWALS",  label: "Retiros" },
@@ -135,10 +164,25 @@ const navGroups = [
   {
     id: "herramientas",
     label: "Herramientas",
+    color: "#10b981",
+    colorBg: "rgba(16,185,129,0.11)",
     items: [
       { key: "IMPORT",       label: "Importar" },
       { key: "COPY_TRADING", label: "Copiador" },
       { key: "CONNECT_MT5",  label: "Conectar" },
+    ],
+  },
+  {
+    id: "revision",
+    label: "Revisión",
+    color: "#a855f7",
+    colorBg: "rgba(168,85,247,0.11)",
+    items: [
+      { key: "REVIEW_ACCOUNTS",   label: "Cuentas" },
+      { key: "REVIEW_TRADES",     label: "Trades" },
+      { key: "REVIEW_METRICS",    label: "Métricas" },
+      { key: "REVIEW_CALENDAR",   label: "Calendario" },
+      { key: "REVIEW_STRATEGIES", label: "Estrategias" },
     ],
   },
 ]
@@ -719,12 +763,29 @@ export function Sidebar({
         {/* Grupos colapsables */}
         {[
           ...navGroups,
-          ...(isAdmin ? [{ id: "sistema", label: "Sistema", items: [{ key: "ADMIN", label: "Usuarios" }] }] : []),
+          ...(isAdmin ? [{ id: "sistema", label: "Sistema", color: "#10b981", colorBg: "rgba(16,185,129,0.11)", items: [{ key: "ADMIN", label: "Usuarios" }] }] : []),
         ].map((group) => {
           const isOpen = openGroups[group.id] ?? false
           const groupHasActive = group.items.some((item) => item.key === activePage)
+          const gc = group.color || "#10b981"
+          const gcBg = group.colorBg || "rgba(16,185,129,0.11)"
+          const isRevision = group.id === "revision"
           return (
             <div key={group.id} style={{ marginTop: "6px" }}>
+              {/* Separador visual antes de Revisión */}
+              {isRevision && (
+                <div style={{ margin: "8px 0 10px", borderTop: "1px solid rgba(168,85,247,0.2)", position: "relative" }}>
+                  <span style={{
+                    position: "absolute", top: "-9px", left: "8px",
+                    background: "var(--sidebar-bg)", padding: "0 6px",
+                    fontSize: "9px", color: "rgba(168,85,247,0.6)", fontWeight: "600", letterSpacing: "0.10em",
+                    textTransform: "uppercase",
+                  }}>
+                    Modo revisión
+                  </span>
+                </div>
+              )}
+
               {/* Cabecera del grupo */}
               <button
                 onClick={() => toggleGroup(group.id)}
@@ -739,7 +800,7 @@ export function Sidebar({
                 <span style={{
                   fontSize: "11.5px", fontWeight: "700", textTransform: "uppercase",
                   letterSpacing: "0.10em",
-                  color: groupHasActive ? "#10b981" : "var(--text-muted)",
+                  color: groupHasActive ? gc : "var(--text-muted)",
                 }}>
                   {group.label}
                 </span>
@@ -747,7 +808,7 @@ export function Sidebar({
                   width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                   style={{
-                    color: groupHasActive ? "#10b981" : "var(--text-muted)",
+                    color: groupHasActive ? gc : "var(--text-muted)",
                     transition: "transform 0.18s",
                     transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
                     flexShrink: 0,
@@ -770,8 +831,8 @@ export function Sidebar({
                         title={isLocked ? "Requiere Nivel 2" : undefined}
                         style={{
                           width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: "10px", border: "none",
-                          background: isActive ? "rgba(16,185,129,0.11)" : "transparent",
-                          color: isActive ? "#10b981" : "var(--text-muted)",
+                          background: isActive ? gcBg : "transparent",
+                          color: isActive ? gc : "var(--text-muted)",
                           cursor: isLocked ? "not-allowed" : "pointer",
                           fontSize: "13px", fontWeight: isActive ? "600" : "500",
                           display: "flex", alignItems: "center", gap: "10px",
