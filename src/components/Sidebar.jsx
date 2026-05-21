@@ -568,14 +568,6 @@ export function Sidebar({
 
   const toggleGroup = (id) => setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }))
 
-  useEffect(() => {
-    for (const group of navGroups) {
-      if (group.items.some((item) => item.key === activePage)) {
-        setOpenGroups((prev) => ({ ...prev, [group.id]: true }))
-        break
-      }
-    }
-  }, [activePage])
 
   if (collapsed && !isMobile) {
     return (
