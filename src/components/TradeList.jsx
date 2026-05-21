@@ -322,8 +322,22 @@ function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showPc
       )}
 
       {/* Notes */}
-      <div style={{ color: "var(--text-muted)", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {trade.note || trade.strategy || "—"}
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
+        <span style={{ color: "var(--text-muted)", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {trade.note || trade.strategy || "—"}
+        </span>
+        {trade.maxRR != null && Number(trade.maxRR) > 0 && (
+          <span style={{
+            flexShrink: 0,
+            fontSize: "10px", fontWeight: "700",
+            padding: "2px 7px", borderRadius: "999px",
+            background: "rgba(168,85,247,0.12)",
+            color: "#a855f7",
+            border: "1px solid rgba(168,85,247,0.25)",
+          }}>
+            {Number(trade.maxRR).toFixed(1)}R
+          </span>
+        )}
       </div>
 
       {/* Actions */}
