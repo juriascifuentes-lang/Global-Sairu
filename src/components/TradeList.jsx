@@ -205,8 +205,12 @@ function TradeViewModal({ trade, onClose, showPct, accountSizeMap }) {
 
 const ROW_HEIGHT = 58
 
-const gridCols = (showAccountCol) =>
-  showAccountCol ? "28px 140px 1fr 90px 110px 110px 1fr 150px" : "28px 140px 1fr 90px 110px 1fr 150px"
+const gridCols = (showAccountCol, showMaxRR) => {
+  if (showAccountCol && showMaxRR) return "28px 140px 1fr 90px 110px 110px 1fr 70px 150px"
+  if (showAccountCol)              return "28px 140px 1fr 90px 110px 110px 1fr 150px"
+  if (showMaxRR)                   return "28px 140px 1fr 90px 110px 1fr 70px 150px"
+  return "28px 140px 1fr 90px 110px 1fr 150px"
+}
 
 function RowCheckbox({ checked, onChange }) {
   return (
@@ -229,7 +233,7 @@ function RowCheckbox({ checked, onChange }) {
   )
 }
 
-function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showPct, accountSizeMap, onEditTrade, onDeleteTrade, setViewingTrade, selectedIds, onToggleSelect }) {
+function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showMaxRR, showPct, accountSizeMap, onEditTrade, onDeleteTrade, setViewingTrade, selectedIds, onToggleSelect }) {
   const trade = trades[index]
   const profit = Number(trade.profit)
   const isWin = profit >= 0
@@ -244,7 +248,7 @@ function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showPc
       style={{
         ...style,
         display: "grid",
-        gridTemplateColumns: gridCols(showAccountCol),
+        gridTemplateColumns: gridCols(showAccountCol, showMaxRR),
         gap: "12px",
         alignItems: "center",
         padding: "0 22px",
@@ -322,23 +326,29 @@ function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showPc
       )}
 
       {/* Notes */}
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
-        <span style={{ color: "var(--text-muted)", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {trade.note || trade.strategy || "—"}
-        </span>
-        {trade.maxRR != null && Number(trade.maxRR) > 0 && (
-          <span style={{
-            flexShrink: 0,
-            fontSize: "10px", fontWeight: "700",
-            padding: "2px 7px", borderRadius: "999px",
-            background: "rgba(168,85,247,0.12)",
-            color: "#a855f7",
-            border: "1px solid rgba(168,85,247,0.25)",
-          }}>
-            {Number(trade.maxRR).toFixed(1)}R
-          </span>
-        )}
+      <div style={{ color: "var(--text-muted)", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {trade.note || trade.strategy || "—"}
       </div>
+
+      {/* RR Máx */}
+      {showMaxRR && (
+        <div>
+          {trade.maxRR != null && Number(trade.maxRR) > 0 ? (
+            <span style={{
+              fontSize: "11px", fontWeight: "700",
+              padding: "3px 9px", borderRadius: "999px",
+              background: "rgba(168,85,247,0.12)",
+              color: "#a855f7",
+              border: "1px solid rgba(168,85,247,0.25)",
+              display: "inline-block",
+            }}>
+              {Number(trade.maxRR).toFixed(1)}R
+            </span>
+          ) : (
+            <span style={{ color: "rgba(148,163,184,0.35)", fontSize: "12px" }}>—</span>
+          )}
+        </div>
+      )}
 
       {/* Actions */}
       <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
@@ -402,8 +412,10 @@ export function TradeList({
   activeAccountName = null,
   showPct = false,
   accountSizeMap = {},
+  isReview = false,
 }) {
   const showAccountCol = activeAccountName === null
+  const showMaxRR = isReview
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState("ALL")
   const [viewingTrade, setViewingTrade] = useState(null)
@@ -470,6 +482,7 @@ export function TradeList({
   const rowProps = {
     trades: filteredTrades,
     showAccountCol,
+    showMaxRR,
     showPct,
     accountSizeMap,
     onEditTrade,
@@ -627,7 +640,7 @@ export function TradeList({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: gridCols(showAccountCol),
+          gridTemplateColumns: gridCols(showAccountCol, showMaxRR),
           gap: "12px",
           padding: "10px 22px",
           borderTop: "1px solid rgba(148, 163, 184, 0.07)",
@@ -675,6 +688,7 @@ export function TradeList({
         <div>Resultado</div>
         {showAccountCol && <div>Cuenta</div>}
         <div>Notas</div>
+        {showMaxRR && <div style={{ color: "#a855f7" }}>RR Máx</div>}
         <div style={{ textAlign: "right" }}>Acciones</div>
       </div>
 

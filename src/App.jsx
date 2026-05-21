@@ -889,6 +889,7 @@ function App() {
                 activeAccountName={reviewActiveAccount ? reviewActiveAccount.name : null}
                 showPct={showPct}
                 accountSizeMap={reviewAccountSizeMap}
+                isReview={true}
               />
             </div>
           )
