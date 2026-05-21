@@ -66,7 +66,8 @@ export function useReviewData(userId, showToast) {
     if (isEditing) {
       const updated = { ...form }
       setTrades((prev) => prev.map((t) => t.id === form.id ? updated : t))
-      const { error } = await supabase.from("review_trades").update(fromTrade(updated, userId)).eq("id", form.id)
+      const { id: _id, ...updatePayload } = fromTrade(updated, userId)
+      const { error } = await supabase.from("review_trades").update(updatePayload).eq("id", form.id)
       if (error) { console.error("[review addTrade update]", error); showToast("No se pudo actualizar el trade.") }
     } else {
       const tempId = crypto.randomUUID()
