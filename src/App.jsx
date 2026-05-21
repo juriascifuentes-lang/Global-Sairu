@@ -993,10 +993,9 @@ function App() {
               {accountNames.length > 0 && weekKeys.length > 0 && (
                 <div style={{ background: "var(--card-bg)", borderRadius: "20px", border: "1px solid rgba(168,85,247,0.2)", overflow: "hidden" }}>
                   {/* Título */}
-                  <div style={{ padding: "16px 22px 12px", borderBottom: "1px solid rgba(168,85,247,0.1)" }}>
-                    <span style={{ fontSize: "10px", color: "#a855f7", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.14em" }}>
-                      Resumen por cuenta · {monthName}
-                    </span>
+                  <div style={{ padding: "20px 28px 16px", borderBottom: "1px solid rgba(168,85,247,0.1)" }}>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: "4px" }}>Revisión · Desglose mensual</div>
+                    <div style={{ fontSize: "17px", fontWeight: "700", color: "var(--text-1)" }}>{monthName.charAt(0).toUpperCase() + monthName.slice(1)}</div>
                   </div>
 
                   {/* Tabla */}
@@ -1004,13 +1003,14 @@ function App() {
                     {/* Header de cuentas */}
                     <div style={{
                       display: "grid",
-                      gridTemplateColumns: `160px repeat(${accountNames.length}, 1fr)`,
-                      padding: "10px 22px",
+                      gridTemplateColumns: `180px repeat(${accountNames.length}, 1fr)`,
+                      padding: "12px 28px",
                       borderBottom: "1px solid rgba(148,163,184,0.07)",
+                      background: "rgba(168,85,247,0.03)",
                     }}>
                       <div style={{ fontSize: "10px", color: "var(--text-muted)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em" }}>Semana</div>
                       {accountNames.map((name) => (
-                        <div key={name} style={{ fontSize: "11px", fontWeight: "700", color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.08em" }}>{name}</div>
+                        <div key={name} style={{ fontSize: "12px", fontWeight: "700", color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.08em" }}>{name}</div>
                       ))}
                     </div>
 
@@ -1018,24 +1018,25 @@ function App() {
                     {weekKeys.map((wk) => (
                       <div key={wk} style={{
                         display: "grid",
-                        gridTemplateColumns: `160px repeat(${accountNames.length}, 1fr)`,
-                        padding: "12px 22px",
+                        gridTemplateColumns: `180px repeat(${accountNames.length}, 1fr)`,
+                        padding: "18px 28px",
                         borderBottom: "1px solid rgba(148,163,184,0.05)",
+                        alignItems: "center",
                       }}>
-                        <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600" }}>
+                        <div style={{ fontSize: "13px", color: "var(--text-muted)", fontWeight: "600" }}>
                           {fmtWeekRange(weekMap[wk].monday)}
                         </div>
                         {accountNames.map((name) => {
                           const s = weekMap[wk].accounts[name]
-                          if (!s) return <div key={name} style={{ color: "rgba(148,163,184,0.3)", fontSize: "13px" }}>—</div>
+                          if (!s) return <div key={name} style={{ color: "rgba(148,163,184,0.25)", fontSize: "16px" }}>—</div>
                           const wr = s.count > 0 ? (s.wins / s.count) * 100 : 0
                           return (
                             <div key={name}>
-                              <div style={{ fontSize: "14px", fontWeight: "700", color: s.total >= 0 ? "#10b981" : "#f87171" }}>
+                              <div style={{ fontSize: "18px", fontWeight: "800", color: s.total >= 0 ? "#10b981" : "#f87171", letterSpacing: "-0.01em" }}>
                                 {s.total >= 0 ? "+" : ""}${Math.abs(s.total).toFixed(0)}
                               </div>
-                              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
-                                {s.count}t · <span style={{ color: wr >= 50 ? "#10b981" : "#f87171", fontWeight: "600" }}>{wr.toFixed(0)}% WR</span>
+                              <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
+                                {s.count} trade{s.count !== 1 ? "s" : ""} · <span style={{ color: wr >= 50 ? "#10b981" : "#f87171", fontWeight: "600" }}>{wr.toFixed(0)}% WR</span>
                               </div>
                             </div>
                           )
@@ -1046,19 +1047,20 @@ function App() {
                     {/* Fila total del mes */}
                     <div style={{
                       display: "grid",
-                      gridTemplateColumns: `160px repeat(${accountNames.length}, 1fr)`,
-                      padding: "14px 22px",
-                      borderTop: "1px solid rgba(168,85,247,0.15)",
-                      background: "rgba(168,85,247,0.04)",
+                      gridTemplateColumns: `180px repeat(${accountNames.length}, 1fr)`,
+                      padding: "20px 28px",
+                      borderTop: "1px solid rgba(168,85,247,0.2)",
+                      background: "rgba(168,85,247,0.05)",
+                      alignItems: "center",
                     }}>
-                      <div style={{ fontSize: "11px", fontWeight: "700", color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.1em" }}>Total mes</div>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: "#a855f7", textTransform: "uppercase", letterSpacing: "0.1em" }}>Total mes</div>
                       {accountStats.map(({ name, total, count, winRate }) => (
                         <div key={name}>
-                          <div style={{ fontSize: "15px", fontWeight: "800", color: total >= 0 ? "#10b981" : "#f87171" }}>
+                          <div style={{ fontSize: "22px", fontWeight: "800", color: total >= 0 ? "#10b981" : "#f87171", letterSpacing: "-0.02em" }}>
                             {total >= 0 ? "+" : ""}${Math.abs(total).toFixed(0)}
                           </div>
-                          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
-                            {count}t · <span style={{ color: winRate >= 50 ? "#10b981" : "#f87171", fontWeight: "600" }}>{winRate.toFixed(0)}% WR</span>
+                          <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
+                            {count} trade{count !== 1 ? "s" : ""} · <span style={{ color: winRate >= 50 ? "#10b981" : "#f87171", fontWeight: "600" }}>{winRate.toFixed(0)}% WR</span>
                           </div>
                         </div>
                       ))}
