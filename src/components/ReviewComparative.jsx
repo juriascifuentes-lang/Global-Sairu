@@ -465,16 +465,79 @@ function StatCard({ label, real, review, format }) {
 // ── Main Export ───────────────────────────────────────────────────────────────
 
 export function ReviewComparative({ trades, reviewTrades }) {
-  const realStats = useMemo(() => calcStats(trades), [trades])
-  const revStats = useMemo(() => calcStats(reviewTrades), [reviewTrades])
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
+
+  const filteredTrades = useMemo(() => trades.filter((t) => {
+    if (!t.date) return false
+    if (dateFrom && t.date < dateFrom) return false
+    if (dateTo && t.date > dateTo) return false
+    return true
+  }), [trades, dateFrom, dateTo])
+
+  const filteredReview = useMemo(() => reviewTrades.filter((t) => {
+    if (!t.date) return false
+    if (dateFrom && t.date < dateFrom) return false
+    if (dateTo && t.date > dateTo) return false
+    return true
+  }), [reviewTrades, dateFrom, dateTo])
+
+  const realStats = useMemo(() => calcStats(filteredTrades), [filteredTrades])
+  const revStats = useMemo(() => calcStats(filteredReview), [filteredReview])
   const delta = revStats.total - realStats.total
+
+  const hasFilter = dateFrom || dateTo
+  const clearFilter = () => { setDateFrom(""); setDateTo("") }
+
+  const dateInputStyle = {
+    background: "var(--card-bg)",
+    border: "1px solid var(--border-nav)",
+    borderRadius: "10px",
+    padding: "8px 12px",
+    color: "var(--text-1)",
+    fontSize: "13px",
+    cursor: "pointer",
+    outline: "none",
+    colorScheme: "dark",
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      <div>
-        <p style={{ margin: 0, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.18em", fontSize: "10px" }}>Revisión · Análisis</p>
-        <h1 style={{ margin: "8px 0 4px", fontSize: "34px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.02em" }}>Comparativa</h1>
-        <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "14px" }}>Journal real vs operaciones de revisión</p>
+      {/* Header con filtro */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
+        <div>
+          <p style={{ margin: 0, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.18em", fontSize: "10px" }}>Revisión · Análisis</p>
+          <h1 style={{ margin: "8px 0 4px", fontSize: "34px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.02em" }}>Comparativa</h1>
+          <p style={{ margin: 0, color: "var(--text-muted)", fontSize: "14px" }}>Journal real vs operaciones de revisión</p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Desde</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              style={dateInputStyle}
+            />
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Hasta</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              style={dateInputStyle}
+            />
+          </div>
+          {hasFilter && (
+            <button
+              onClick={clearFilter}
+              style={{ padding: "8px 14px", borderRadius: "10px", border: "1px solid rgba(248,113,113,0.3)", background: "rgba(248,113,113,0.08)", color: "#f87171", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Costo de errores */}
@@ -539,13 +602,13 @@ export function ReviewComparative({ trades, reviewTrades }) {
         <p style={{ margin: "0 0 2px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", fontSize: "10px", fontWeight: "600" }}>Rendimiento Acumulado</p>
         <h3 style={{ margin: "0 0 20px", fontSize: "16px", fontWeight: "700", color: "var(--text-1)" }}>Curva de Equity — Real vs Revisión</h3>
         <div style={{ height: "220px", display: "flex" }}>
-          <DualEquityCurve realTrades={trades} reviewTrades={reviewTrades} />
+          <DualEquityCurve realTrades={filteredTrades} reviewTrades={filteredReview} />
         </div>
       </div>
 
       {/* Comparative calendar */}
       <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-nav)", borderRadius: "16px", padding: "24px" }}>
-        <ComparativeCalendar realTrades={trades} reviewTrades={reviewTrades} />
+        <ComparativeCalendar realTrades={filteredTrades} reviewTrades={filteredReview} />
       </div>
     </div>
   )
