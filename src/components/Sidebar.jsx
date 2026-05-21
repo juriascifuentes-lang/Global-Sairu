@@ -102,6 +102,11 @@ const navIcons = {
       <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
     </svg>
   ),
+  REVIEW_COMPARATIVE: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+    </svg>
+  ),
   REVIEW_STRATEGIES: (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -178,11 +183,12 @@ const navGroups = [
     color: "#a855f7",
     colorBg: "rgba(168,85,247,0.11)",
     items: [
-      { key: "REVIEW_CALENDAR",   label: "Calendario" },
-      { key: "REVIEW_ACCOUNTS",   label: "Cuentas" },
-      { key: "REVIEW_TRADES",     label: "Trades" },
-      { key: "REVIEW_METRICS",    label: "Métricas" },
-      { key: "REVIEW_STRATEGIES", label: "Estrategias" },
+      { key: "REVIEW_CALENDAR",     label: "Calendario" },
+      { key: "REVIEW_ACCOUNTS",     label: "Cuentas" },
+      { key: "REVIEW_TRADES",       label: "Trades" },
+      { key: "REVIEW_METRICS",      label: "Métricas" },
+      { key: "REVIEW_STRATEGIES",   label: "Estrategias" },
+      { key: "REVIEW_COMPARATIVE",  label: "Comparativa", dividerBefore: true },
     ],
   },
 ]
@@ -825,8 +831,12 @@ export function Sidebar({
                     const isActive = activePage === item.key
                     const isLocked = item.key === "COPY_TRADING" && userLevel === 1 && !isAdmin
                     return (
+                      <div key={item.key}>
+                        {item.dividerBefore && (
+                          <div style={{ height: "1px", background: "var(--border-nav)", margin: "6px 4px 6px" }} />
+                        )}
                       <button
-                        key={item.key}
+                        key={item.key + "_btn"}
                         onClick={() => { if (!isLocked) { onNavigate(item.key); if (isMobile) onClose() } }}
                         title={isLocked ? "Requiere Nivel 2" : undefined}
                         style={{
@@ -848,6 +858,7 @@ export function Sidebar({
                         {item.label}
                         {isLocked && <span style={{ marginLeft: "auto", opacity: 0.7 }}>{lockIcon}</span>}
                       </button>
+                      </div>
                     )
                   })}
                 </div>

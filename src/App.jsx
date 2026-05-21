@@ -21,6 +21,7 @@ import { ResetPasswordScreen } from "./components/ResetPasswordScreen"
 import { AdminPanel } from "./components/AdminPanel"
 import { ConnectMT5Panel } from "./components/ConnectMT5Panel"
 import { CopyTradingPanel } from "./components/CopyTradingPanel"
+import { ReviewComparative } from "./components/ReviewComparative"
 import { ConfirmModal } from "./components/ConfirmModal"
 import {
   RecentTradesWidget,
@@ -205,7 +206,7 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-  const REVIEW_PAGES = ["REVIEW_TRADES", "REVIEW_METRICS", "REVIEW_CALENDAR", "REVIEW_STRATEGIES", "REVIEW_ACCOUNTS"]
+  const REVIEW_PAGES = ["REVIEW_TRADES", "REVIEW_METRICS", "REVIEW_CALENDAR", "REVIEW_STRATEGIES", "REVIEW_ACCOUNTS", "REVIEW_COMPARATIVE"]
   const isReviewPage = REVIEW_PAGES.includes(activePage)
 
   const accountSizeMap = useMemo(
@@ -1145,6 +1146,14 @@ function App() {
             </div>
           )
         })()}
+
+        {/* ─── REVIEW: COMPARATIVA ─── */}
+        {activePage === "REVIEW_COMPARATIVE" && (
+          <ReviewComparative
+            trades={trades}
+            reviewTrades={reviewTrades}
+          />
+        )}
 
         {/* ─── REVIEW: ESTRATEGIAS ─── */}
         {activePage === "REVIEW_STRATEGIES" && (
