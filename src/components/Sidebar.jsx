@@ -737,8 +737,8 @@ export function Sidebar({
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
               >
                 <span style={{
-                  fontSize: "10px", fontWeight: "700", textTransform: "uppercase",
-                  letterSpacing: "0.12em",
+                  fontSize: "11.5px", fontWeight: "700", textTransform: "uppercase",
+                  letterSpacing: "0.10em",
                   color: groupHasActive ? "#10b981" : "var(--text-muted)",
                 }}>
                   {group.label}
