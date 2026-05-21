@@ -101,7 +101,9 @@ export function EquityCurve({ trades, showPct = false, baseCapital = 0, accountS
       n > 1 ? { label: fmtDate(coords[n - 1].date), align: "right" } : null,
     ].filter(Boolean)
 
-    return { linePath, areaPath, last, isPositive, yLabels, xLabels }
+    const zeroY = toY(0)
+
+    return { linePath, areaPath, last, isPositive, yLabels, xLabels, zeroY }
   }, [trades, showPct, accountSizeMap, baseCapital])
 
   const color = data?.isPositive !== false ? "#10b981" : "#f87171"
@@ -175,6 +177,17 @@ export function EquityCurve({ trades, showPct = false, baseCapital = 0, accountS
                   />
                 ))}
               </g>
+
+              {/* Línea de referencia $0 */}
+              {data.zeroY > 4 && data.zeroY < 76 && (
+                <line
+                  x1="0" y1={data.zeroY} x2="100" y2={data.zeroY}
+                  stroke="rgba(148,163,184,0.45)"
+                  strokeWidth="0.6"
+                  strokeDasharray="2 2"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
 
               <path d={data.areaPath} fill={`url(#${gradId})`} />
 
