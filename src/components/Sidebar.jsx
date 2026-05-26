@@ -559,12 +559,22 @@ export function Sidebar({
   isMobile = false,
   isOpen = false,
   onClose = () => {},
+  onSwitchAccount = () => {},
 }) {
   const isDark = theme === "dark"
   const [collapsed, setCollapsed] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
   const [openGroups, setOpenGroups] = useState({})
+  const [savedSessions, setSavedSessions] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("gs_saved_sessions") || "[]") }
+    catch { return [] }
+  })
+
+  useEffect(() => {
+    try { setSavedSessions(JSON.parse(localStorage.getItem("gs_saved_sessions") || "[]")) }
+    catch { setSavedSessions([]) }
+  }, [userEmail])
 
   const toggleGroup = (id) => setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }))
 
@@ -905,6 +915,66 @@ export function Sidebar({
         onMouseEnter={() => setUserMenuOpen(true)}
         onMouseLeave={() => setUserMenuOpen(false)}
       >
+        {/* Multi-account avatar strip */}
+        {savedSessions.length >= 2 && (
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px", paddingLeft: "4px" }}>
+            {savedSessions.map((s) => {
+              const isActive = s.email === userEmail
+              const initials = (s.displayName || s.email.split("@")[0]).slice(0, 2).toUpperCase()
+              let hash = 0
+              for (const ch of s.email) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffffffff
+              const palette = [
+                "linear-gradient(135deg,#10b981,#059669)",
+                "linear-gradient(135deg,#6366f1,#4f46e5)",
+                "linear-gradient(135deg,#f59e0b,#d97706)",
+                "linear-gradient(135deg,#ec4899,#db2777)",
+                "linear-gradient(135deg,#3b82f6,#2563eb)",
+              ]
+              const bg = palette[Math.abs(hash) % palette.length]
+              return (
+                <button
+                  key={s.email}
+                  title={s.email}
+                  onClick={() => { if (!isActive) onSwitchAccount(s) }}
+                  translate="no"
+                  style={{
+                    width: "28px", height: "28px", borderRadius: "50%",
+                    background: bg,
+                    border: isActive ? "2.5px solid #10b981" : "2px solid transparent",
+                    boxShadow: isActive ? "0 0 0 2px rgba(16,185,129,0.25)" : "none",
+                    display: "grid", placeItems: "center",
+                    fontWeight: "700", fontSize: "10px", color: "#fff",
+                    cursor: isActive ? "default" : "pointer",
+                    flexShrink: 0, padding: 0, transition: "transform 0.1s",
+                  }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.transform = "scale(1.12)" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)" }}
+                >
+                  {initials}
+                </button>
+              )
+            })}
+            <button
+              title="Agregar cuenta"
+              onClick={() => onLogout && onLogout()}
+              style={{
+                width: "28px", height: "28px", borderRadius: "50%",
+                border: "1.5px dashed var(--border-input)",
+                background: "transparent",
+                display: "grid", placeItems: "center",
+                color: "var(--text-muted)", cursor: "pointer",
+                flexShrink: 0, padding: 0, transition: "border-color 0.15s, color 0.15s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--text-muted)"; e.currentTarget.style.color = "var(--text-2)" }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-input)"; e.currentTarget.style.color = "var(--text-muted)" }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </button>
+          </div>
+        )}
+
         <div
           style={{
             display: "flex",
@@ -1023,6 +1093,36 @@ export function Sidebar({
                 <span style={{ display: "flex", flexShrink: 0 }}>{keyIcon}</span>
                 Cambiar contraseña
               </button>
+
+              {savedSessions.length < 2 && onLogout && (
+                <button
+                  onClick={() => { setUserMenuOpen(false); onLogout() }}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    padding: "10px 14px",
+                    borderRadius: "12px",
+                    border: "1px solid var(--border-input)",
+                    background: "var(--card-bg)",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <span style={{ display: "flex", flexShrink: 0 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+                    </svg>
+                  </span>
+                  Agregar cuenta
+                </button>
+              )}
 
               {onLogout && (
                 <button

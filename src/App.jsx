@@ -29,6 +29,31 @@ import {
   LastWithdrawalsWidget,
 } from "./components/DashboardWidgets"
 
+const SESSIONS_KEY = "gs_saved_sessions"
+
+const saveSessionToStorage = (session) => {
+  if (!session?.user?.email || !session?.refresh_token) return
+  try {
+    const sessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "[]")
+    const email = session.user.email
+    const displayName = email.split("@")[0]
+    const entry = { email, displayName, refreshToken: session.refresh_token, userId: session.user.id }
+    const idx = sessions.findIndex((s) => s.email === email)
+    if (idx >= 0) sessions[idx] = entry
+    else sessions.push(entry)
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
+  } catch (e) {
+    console.warn("[saveSession]", e)
+  }
+}
+
+const removeSavedSession = (email) => {
+  try {
+    const sessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "[]")
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions.filter((s) => s.email !== email)))
+  } catch {}
+}
+
 const defaultForm = {
   symbol: "", type: "BUY", profit: "", note: "",
   date: new Date().toISOString().split("T")[0],
@@ -123,6 +148,9 @@ function App() {
       } else {
         setPasswordRecovery(false)
         setSession(session)
+      }
+      if (session?.user?.email && session?.refresh_token) {
+        saveSessionToStorage(session)
       }
       setAuthLoading(false)
     })
@@ -308,6 +336,21 @@ function App() {
     setProfile(null)
   }
 
+  const handleSwitchAccount = async (entry) => {
+    try {
+      const { error } = await supabase.auth.refreshSession({ refresh_token: entry.refreshToken })
+      if (error) {
+        removeSavedSession(entry.email)
+        showToast(`La sesión de ${entry.email} expiró. Inicia sesión nuevamente.`)
+      } else {
+        setProfile(null)
+      }
+    } catch (err) {
+      console.error("[switchAccount]", err)
+      showToast("No se pudo cambiar de cuenta.")
+    }
+  }
+
   const displayedTrades = activeAccount
     ? trades.filter((t) => t.account === activeAccount.name)
     : trades
@@ -354,6 +397,7 @@ function App() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onLogout={handleLogout}
+        onSwitchAccount={handleSwitchAccount}
         isAdmin={profile.is_admin}
         userLevel={profile.level || 1}
         showPct={showPct}
