@@ -11,6 +11,8 @@ import {
   parseHtmlTable,
   isTradovateFormat,
   parseTradovateCSV,
+  isDeepChartsFormat,
+  parseDeepChartsCSV,
 } from "../utils/parseImport"
 
 const inputStyle = {
@@ -265,6 +267,16 @@ export function ImportPanel({ accounts, onImportTrades, onNavigate }) {
             throw new Error("No se encontraron trades en el archivo de Tradovate.")
           await onImportTrades(validTrades)
           setMessage(`Importados ${validTrades.length} trades desde Tradovate.`)
+          return
+        }
+
+        // ── Detectar formato DeepCharts ──
+        if (isDeepChartsFormat(headers)) {
+          const validTrades = parseDeepChartsCSV(headers, rows, accountName)
+          if (validTrades.length === 0)
+            throw new Error("No se encontraron trades en el archivo de DeepCharts.")
+          await onImportTrades(validTrades)
+          setMessage(`Importados ${validTrades.length} trades desde DeepCharts.`)
           return
         }
 

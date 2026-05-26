@@ -5,6 +5,7 @@ import {
   normalizeHeader, findHeaderRow, sliceUntilSectionEnd,
   parseXlsxFile, parseHtmlTable,
   isTradovateFormat, parseTradovateCSV,
+  isDeepChartsFormat, parseDeepChartsCSV,
 } from "../utils/parseImport"
 
 const NT8_POINT_VALUES = {
@@ -436,6 +437,12 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
         // ── Detectar formato Tradovate ──
         if (isTradovateFormat(headers)) {
           await doImport(parseTradovateCSV(headers, rows, accountName), "Tradovate")
+          return
+        }
+
+        // ── Detectar formato DeepCharts ──
+        if (isDeepChartsFormat(headers)) {
+          await doImport(parseDeepChartsCSV(headers, rows, accountName), "DeepCharts")
           return
         }
 

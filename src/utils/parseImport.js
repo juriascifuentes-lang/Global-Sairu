@@ -241,6 +241,58 @@ export const parseTradovateCSV = (headers, rows, accountName) => {
   return trades
 }
 
+export const isDeepChartsFormat = (headers) =>
+  headers.some((h) => h === "entry date") &&
+  headers.some((h) => h === "exit date") &&
+  headers.some((h) => h === "net p l" || h.includes("net p"))
+
+export const parseDeepChartsCSV = (headers, rows, accountName) => {
+  const idx = (candidates) =>
+    candidates.reduce(
+      (found, c) => (found !== -1 ? found : headers.findIndex((h) => h === c || h.includes(c))),
+      -1
+    )
+
+  const symbolIdx    = idx(["symbol"])
+  const sideIdx      = idx(["side"])
+  const netPlIdx     = idx(["net p l"])
+  const entryDateIdx = idx(["entry date"])
+  const quantityIdx  = idx(["quantity"])
+
+  const trades = []
+
+  for (const cells of rows) {
+    const symbol  = normalizeCell(cells[symbolIdx] || "")
+    const side    = normalizeCell(cells[sideIdx] || "").toUpperCase()
+    const netPl   = parseNumber(normalizeCell(cells[netPlIdx] || "0"))
+    const rawDate = normalizeCell(cells[entryDateIdx] || "")
+    const qty     = Math.abs(parseInt(normalizeCell(cells[quantityIdx] || "1")) || 1)
+
+    if (!symbol || !rawDate) continue
+
+    const { date, time } = parseDateString(rawDate)
+    if (!date) continue
+
+    const type = side === "BUY" ? "BUY" : side === "SELL" ? "SELL" : null
+    if (!type) continue
+
+    trades.push({
+      symbol,
+      type,
+      profit:     netPl.toFixed(2),
+      date,
+      openTime:   time,
+      account:    accountName,
+      note:       `DeepCharts | Contratos: ${qty}`,
+      strategy:   "",
+      stopLoss:   null,
+      takeProfit: null,
+    })
+  }
+
+  return trades
+}
+
 // Returns only the direct <tr> rows of a table — avoids picking up rows from nested tables.
 const getDirectRows = (table) => {
   const rows = []
