@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { supabase } from "./lib/supabase"
 import { useJournalData } from "./hooks/useJournalData"
 import { useReviewData } from "./hooks/useReviewData"
@@ -37,7 +37,7 @@ const saveSessionToStorage = (session) => {
     const sessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || "[]")
     const email = session.user.email
     const displayName = email.split("@")[0]
-    const entry = { email, displayName, refreshToken: session.refresh_token, userId: session.user.id }
+    const entry = { email, displayName, accessToken: session.access_token, refreshToken: session.refresh_token, userId: session.user.id }
     const idx = sessions.findIndex((s) => s.email === email)
     if (idx >= 0) sessions[idx] = entry
     else sessions.push(entry)
@@ -96,6 +96,8 @@ function PageHeader({ sup, title, sub }) {
 function App() {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [addingAccount, setAddingAccount] = useState(false)
+  const addingAccountRef = useRef(false)
   const [passwordRecovery, setPasswordRecovery] = useState(() =>
     window.location.hash.includes("type=recovery")
   )
@@ -151,6 +153,11 @@ function App() {
       }
       if (session?.user?.email && session?.refresh_token) {
         saveSessionToStorage(session)
+      }
+      // If we were adding a second account and a new login arrived, close the add-account screen
+      if (event === "SIGNED_IN" && addingAccountRef.current) {
+        addingAccountRef.current = false
+        setAddingAccount(false)
       }
       setAuthLoading(false)
     })
@@ -259,6 +266,8 @@ function App() {
     )
   }
 
+  if (addingAccount) return <LoginScreen />
+
   if (!session) return <LoginScreen />
 
   if (!profile) {
@@ -338,31 +347,27 @@ function App() {
     setProfile(null)
   }
 
-  // Add a second account: only clears local session, keeps refresh token valid server-side
+  // Add a second account: save current session then show login WITHOUT signing out.
+  // signOut (any scope) revokes the current refresh token server-side, so we never call it here.
   const handleAddAccount = async () => {
-    await supabase.auth.signOut({ scope: "local" })
-    setProfile(null)
+    const { data: { session: current } } = await supabase.auth.getSession()
+    if (current) saveSessionToStorage(current)
+    addingAccountRef.current = true
+    setAddingAccount(true)
   }
 
   const handleSwitchAccount = async (entry) => {
     try {
-      // Direct REST call avoids conflicts with the Supabase client's internal session state
-      const resp = await fetch(
-        `${supabase.supabaseUrl}/auth/v1/token?grant_type=refresh_token`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: supabase.supabaseKey },
-          body: JSON.stringify({ refresh_token: entry.refreshToken }),
-        }
-      )
-      if (!resp.ok) {
+      // setSession handles expired access tokens automatically using the refresh token
+      setProfile(null)
+      const { error } = await supabase.auth.setSession({
+        access_token: entry.accessToken || "",
+        refresh_token: entry.refreshToken,
+      })
+      if (error) {
         removeSavedSession(entry.email)
         showToast(`La sesión de ${entry.email} expiró. Vuelve a iniciar sesión.`)
-        return
       }
-      const tokens = await resp.json()
-      setProfile(null)
-      await supabase.auth.setSession({ access_token: tokens.access_token, refresh_token: tokens.refresh_token })
     } catch (err) {
       console.error("[switchAccount]", err)
       showToast("No se pudo cambiar de cuenta.")
