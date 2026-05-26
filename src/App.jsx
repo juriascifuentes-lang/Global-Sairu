@@ -346,13 +346,23 @@ function App() {
 
   const handleSwitchAccount = async (entry) => {
     try {
-      const { error } = await supabase.auth.refreshSession({ refresh_token: entry.refreshToken })
-      if (error) {
+      // Direct REST call avoids conflicts with the Supabase client's internal session state
+      const resp = await fetch(
+        `${supabase.supabaseUrl}/auth/v1/token?grant_type=refresh_token`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: supabase.supabaseKey },
+          body: JSON.stringify({ refresh_token: entry.refreshToken }),
+        }
+      )
+      if (!resp.ok) {
         removeSavedSession(entry.email)
-        showToast(`La sesión de ${entry.email} expiró. Inicia sesión nuevamente.`)
-      } else {
-        setProfile(null)
+        showToast(`La sesión de ${entry.email} expiró. Vuelve a iniciar sesión.`)
+        return
       }
+      const tokens = await resp.json()
+      setProfile(null)
+      await supabase.auth.setSession({ access_token: tokens.access_token, refresh_token: tokens.refresh_token })
     } catch (err) {
       console.error("[switchAccount]", err)
       showToast("No se pudo cambiar de cuenta.")
