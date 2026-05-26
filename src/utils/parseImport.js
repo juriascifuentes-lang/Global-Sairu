@@ -88,6 +88,25 @@ export const parseDateString = (value) => {
   }
 }
 
+export const parseCSVRow = (line, delimiter = ",") => {
+  const cells = []
+  let current = ""
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') {
+      inQuotes = !inQuotes
+    } else if (ch === delimiter && !inQuotes) {
+      cells.push(current.trim())
+      current = ""
+    } else {
+      current += ch
+    }
+  }
+  cells.push(current.trim())
+  return cells
+}
+
 export const detectDelimiter = (text) => {
   const headerLine = text.split(/\r?\n/)[0] || ""
   const commaCount = (headerLine.match(/,/g) || []).length

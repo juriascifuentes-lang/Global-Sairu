@@ -1,7 +1,7 @@
 import { useState, useRef } from "react"
 import { showConfirm } from "../lib/confirm"
 import {
-  parseNumber, normalizeCell, parseDateString, detectDelimiter,
+  parseNumber, normalizeCell, parseDateString, detectDelimiter, parseCSVRow,
   normalizeHeader, findHeaderRow, sliceUntilSectionEnd,
   parseXlsxFile, parseHtmlTable,
   isTradovateFormat, parseTradovateCSV,
@@ -397,7 +397,7 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
             const delim = detectDelimiter(text)
             const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
             if (lines.length < 2) throw new Error("El archivo no tiene suficientes filas.")
-            const parsed = lines.map(l => l.split(delim).map(c => c.trim()))
+            const parsed = lines.map(l => parseCSVRow(l, delim))
             const hi = findHeaderRow(parsed.slice(0, 8))
             headers = parsed[hi].map(normalizeHeader)
             rows = sliceUntilSectionEnd(parsed.slice(hi + 1))

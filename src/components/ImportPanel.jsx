@@ -4,6 +4,7 @@ import {
   normalizeCell,
   parseDateString,
   detectDelimiter,
+  parseCSVRow,
   normalizeHeader,
   findHeaderRow,
   sliceUntilSectionEnd,
@@ -249,9 +250,7 @@ export function ImportPanel({ accounts, onImportTrades, onNavigate }) {
               throw new Error("El archivo no contiene suficientes filas de datos.")
             }
 
-            const parsedLines = lines.map((line) =>
-              line.split(delimiter).map((cell) => cell.trim())
-            )
+            const parsedLines = lines.map((line) => parseCSVRow(line, delimiter))
             const headerRowIndex = findHeaderRow(
               parsedLines.slice(0, Math.min(parsedLines.length, 8))
             )
