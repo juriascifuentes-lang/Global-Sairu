@@ -582,12 +582,14 @@ export function MetricsPanel({ trades, showPct = false, baseCapital = 0, account
                     <div style={{ height: "100%", width: `${s.lossesWithFavRR > 0 ? (s.nearWins / s.lossesWithFavRR) * 100 : 0}%`, background: "linear-gradient(90deg,#f59e0b,#d97706)", borderRadius: "999px" }} />
                   </div>
                   <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                    {s.lossesWithFavRR} pérdidas analizadas
                     {s.avgFavorableRR !== null && (
-                      <span style={{ display: "block", marginTop: "4px", color: "#f59e0b", fontWeight: "600" }}>
+                      <span style={{ display: "block", color: "#f59e0b", fontWeight: "600" }}>
                         Prom. RR favorable: {s.avgFavorableRR.toFixed(2)}R
                       </span>
                     )}
+                    <span style={{ display: "block", marginTop: "4px" }}>
+                      {s.lossesWithFavRR} de {s.losses} pérdidas con datos
+                    </span>
                   </div>
                 </>
               ) : (
@@ -630,6 +632,9 @@ export function MetricsPanel({ trades, showPct = false, baseCapital = 0, account
                   </div>
                   <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "18px" }}>
                     Promedio RR máximo alcanzado en ganadores
+                    <span style={{ display: "block", marginTop: "4px", fontWeight: "600", color: "#a855f7" }}>
+                      {s.winnersWithRR} de {s.wins} ganadores con datos
+                    </span>
                   </div>
                   <div style={{ padding: "12px 14px", borderRadius: "12px", background: "rgba(168,85,247,0.07)", border: "1px solid rgba(168,85,247,0.15)" }}>
                     <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "6px" }}>R dejado en la mesa</div>
