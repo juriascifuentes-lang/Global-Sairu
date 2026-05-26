@@ -936,7 +936,14 @@ export function Sidebar({
                 <button
                   key={s.email}
                   title={s.email}
-                  onClick={() => { if (!isActive) onSwitchAccount(s) }}
+                  onClick={() => {
+                    if (!isActive) {
+                      try {
+                        const fresh = JSON.parse(localStorage.getItem("gs_saved_sessions") || "[]")
+                        onSwitchAccount(fresh.find((x) => x.email === s.email) || s)
+                      } catch { onSwitchAccount(s) }
+                    }
+                  }}
                   translate="no"
                   style={{
                     width: "28px", height: "28px", borderRadius: "50%",
