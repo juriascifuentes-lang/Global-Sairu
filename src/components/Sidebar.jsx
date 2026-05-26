@@ -560,6 +560,7 @@ export function Sidebar({
   isOpen = false,
   onClose = () => {},
   onSwitchAccount = () => {},
+  onAddAccount = () => {},
 }) {
   const isDark = theme === "dark"
   const [collapsed, setCollapsed] = useState(false)
@@ -956,7 +957,7 @@ export function Sidebar({
             })}
             <button
               title="Agregar cuenta"
-              onClick={() => onLogout && onLogout()}
+              onClick={() => onAddAccount()}
               style={{
                 width: "28px", height: "28px", borderRadius: "50%",
                 border: "1.5px dashed var(--border-input)",
@@ -1094,9 +1095,9 @@ export function Sidebar({
                 Cambiar contraseña
               </button>
 
-              {savedSessions.length < 2 && onLogout && (
+              {savedSessions.length < 2 && (
                 <button
-                  onClick={() => { setUserMenuOpen(false); onLogout() }}
+                  onClick={() => { setUserMenuOpen(false); onAddAccount() }}
                   style={{
                     width: "100%",
                     display: "flex",

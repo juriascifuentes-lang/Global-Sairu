@@ -332,7 +332,15 @@ function App() {
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    // Real logout: revoke tokens server-side and remove from saved sessions
+    if (session?.user?.email) removeSavedSession(session.user.email)
+    await supabase.auth.signOut({ scope: "global" })
+    setProfile(null)
+  }
+
+  // Add a second account: only clears local session, keeps refresh token valid server-side
+  const handleAddAccount = async () => {
+    await supabase.auth.signOut({ scope: "local" })
     setProfile(null)
   }
 
@@ -397,6 +405,7 @@ function App() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onLogout={handleLogout}
+        onAddAccount={handleAddAccount}
         onSwitchAccount={handleSwitchAccount}
         isAdmin={profile.is_admin}
         userLevel={profile.level || 1}
