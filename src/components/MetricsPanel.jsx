@@ -414,6 +414,9 @@ export function MetricsPanel({ trades, showPct = false, baseCapital = 0, account
     const avgFavorableRR = lossesWithFavRR.length
       ? lossesWithFavRR.reduce((s, t) => s + Number(t.maxFavorableRR), 0) / lossesWithFavRR.length
       : null
+    const lossesWouldWin = avgFavorableRR !== null
+      ? lossesWithFavRR.filter((t) => Number(t.maxFavorableRR) >= avgFavorableRR).length
+      : 0
 
     // Ganadores con data de maxRR
     const winnersWithRR = sorted.filter((t) => Number(t.profit) > 0 && t.maxRR != null && Number(t.maxRR) > 0)
@@ -422,6 +425,9 @@ export function MetricsPanel({ trades, showPct = false, baseCapital = 0, account
     const avgMaxRR = winnersWithRR.length
       ? winnersWithRR.reduce((s, t) => s + Number(t.maxRR), 0) / winnersWithRR.length
       : null
+    const winnersReachAvg = avgMaxRR !== null
+      ? winnersWithRR.filter((t) => Number(t.maxRR) >= avgMaxRR).length
+      : 0
     const rLeftOnTable = winnersWithRR.reduce((s, t) => {
       const target = getTargetRR(t)
       const max = Number(t.maxRR)
@@ -449,8 +455,8 @@ export function MetricsPanel({ trades, showPct = false, baseCapital = 0, account
       monthlyRows, byDow, byMonth, byWeekPadded, weekLabels,
       monthlyPctMap,
       dowStats,
-      lossesWithFavRR: lossesWithFavRR.length, nearWins: nearWins.length, deadTrades: deadTrades.length, avgFavorableRR,
-      winnersWithRR: winnersWithRR.length, avgEfficiency, avgMaxRR, rLeftOnTable,
+      lossesWithFavRR: lossesWithFavRR.length, nearWins: nearWins.length, deadTrades: deadTrades.length, avgFavorableRR, lossesWouldWin,
+      winnersWithRR: winnersWithRR.length, avgEfficiency, avgMaxRR, rLeftOnTable, winnersReachAvg,
     }
   }, [filteredTrades, accountSizeMap, baseCapital])
 
@@ -583,13 +589,15 @@ export function MetricsPanel({ trades, showPct = false, baseCapital = 0, account
                   </div>
                   <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                     {s.avgFavorableRR !== null && (
-                      <span style={{ display: "block", color: "#f59e0b", fontWeight: "600" }}>
-                        Prom. RR favorable: {s.avgFavorableRR.toFixed(2)}R
-                      </span>
+                      <>
+                        <span style={{ display: "block", color: "#f59e0b", fontWeight: "600" }}>
+                          Prom. RR favorable: {s.avgFavorableRR.toFixed(2)}R
+                        </span>
+                        <span style={{ display: "block", marginTop: "4px", color: "#10b981", fontWeight: "600" }}>
+                          {s.lossesWouldWin} se habrían ganado cerrando en {s.avgFavorableRR.toFixed(2)}R
+                        </span>
+                      </>
                     )}
-                    <span style={{ display: "block", marginTop: "4px" }}>
-                      {s.lossesWithFavRR} de {s.losses} pérdidas con datos
-                    </span>
                   </div>
                 </>
               ) : (
@@ -633,7 +641,7 @@ export function MetricsPanel({ trades, showPct = false, baseCapital = 0, account
                   <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "18px" }}>
                     Promedio RR máximo alcanzado en ganadores
                     <span style={{ display: "block", marginTop: "4px", fontWeight: "600", color: "#a855f7" }}>
-                      {s.winnersWithRR} de {s.wins} ganadores con datos
+                      {s.winnersReachAvg} de {s.winnersWithRR} habrían llegado a {s.avgMaxRR !== null ? s.avgMaxRR.toFixed(2) : "—"}R
                     </span>
                   </div>
                   <div style={{ padding: "12px 14px", borderRadius: "12px", background: "rgba(168,85,247,0.07)", border: "1px solid rgba(168,85,247,0.15)" }}>
