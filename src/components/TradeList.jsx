@@ -342,7 +342,7 @@ function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showMa
               border: "1px solid rgba(245,158,11,0.25)",
               display: "inline-block",
             }}>
-              {Number(trade.maxFavorableRR).toFixed(1)}R
+              {Number(trade.maxFavorableRR)}R
             </span>
           ) : null}
         </div>
@@ -360,7 +360,7 @@ function TradeRow({ ariaAttributes, index, style, trades, showAccountCol, showMa
               border: "1px solid rgba(168,85,247,0.25)",
               display: "inline-block",
             }}>
-              {Number(trade.maxRR).toFixed(1)}R
+              {Number(trade.maxRR)}R
             </span>
           ) : null}
         </div>

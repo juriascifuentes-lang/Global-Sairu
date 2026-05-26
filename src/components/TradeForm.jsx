@@ -253,7 +253,7 @@ export function TradeForm({ form, setForm, onAddTrade, isEditing, accounts, stra
                   ¿Hasta qué RR llegó a tu favor antes de revertir?
                   {isLoss && form.maxFavorableRR && Number(form.maxFavorableRR) > 0 && (
                     <span style={{ display: "block", marginTop: "3px", color: "#f59e0b", fontWeight: "600" }}>
-                      Favorable: {Number(form.maxFavorableRR).toFixed(1)}R
+                      Favorable: {Number(form.maxFavorableRR)}R
                     </span>
                   )}
                 </div>
@@ -283,7 +283,7 @@ export function TradeForm({ form, setForm, onAddTrade, isEditing, accounts, stra
                   ¿Hasta qué RR llegó el precio antes de cerrar o revertir?
                   {isWin && form.maxRR && Number(form.maxRR) > 0 && (
                     <span style={{ display: "block", marginTop: "3px", color: "#a855f7", fontWeight: "600" }}>
-                      Máximo: {Number(form.maxRR).toFixed(1)}R
+                      Máximo: {Number(form.maxRR)}R
                     </span>
                   )}
                 </div>
