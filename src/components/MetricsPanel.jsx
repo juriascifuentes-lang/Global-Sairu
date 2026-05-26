@@ -399,6 +399,35 @@ export function MetricsPanel({ trades, showPct = false, baseCapital = 0, account
     const byWeekPadded = weekEntries.map(([,v]) => v)
     const weekLabels = weekEntries.map(([k]) => k.split("-W")[1])
 
+    // ── RR Analysis ──────────────────────────────────────────────────────────
+    const NEAR_WIN_THRESHOLD = 0.5
+    const getTargetRR = (t) => {
+      const sl = Number(t.stopLoss)
+      const tp = Number(t.takeProfit)
+      return sl > 0 && tp > 0 ? tp / sl : 1
+    }
+
+    // Pérdidas con data de RR favorable
+    const lossesWithFavRR = sorted.filter((t) => Number(t.profit) < 0 && t.maxFavorableRR != null && Number(t.maxFavorableRR) >= 0)
+    const nearWins = lossesWithFavRR.filter((t) => Number(t.maxFavorableRR) >= NEAR_WIN_THRESHOLD)
+    const deadTrades = lossesWithFavRR.filter((t) => Number(t.maxFavorableRR) < NEAR_WIN_THRESHOLD)
+    const avgFavorableRR = lossesWithFavRR.length
+      ? lossesWithFavRR.reduce((s, t) => s + Number(t.maxFavorableRR), 0) / lossesWithFavRR.length
+      : null
+
+    // Ganadores con data de maxRR
+    const winnersWithRR = sorted.filter((t) => Number(t.profit) > 0 && t.maxRR != null && Number(t.maxRR) > 0)
+    const efficiencies = winnersWithRR.map((t) => Math.min(getTargetRR(t) / Number(t.maxRR), 1))
+    const avgEfficiency = efficiencies.length ? efficiencies.reduce((a, b) => a + b, 0) / efficiencies.length : null
+    const avgMaxRR = winnersWithRR.length
+      ? winnersWithRR.reduce((s, t) => s + Number(t.maxRR), 0) / winnersWithRR.length
+      : null
+    const rLeftOnTable = winnersWithRR.reduce((s, t) => {
+      const target = getTargetRR(t)
+      const max = Number(t.maxRR)
+      return s + (max > target ? max - target : 0)
+    }, 0)
+
     // Day-of-week performance table
     const dowStats = WEEKDAYS_FULL.map((day, idx) => {
       const dayTrades = sorted.filter((t) => (parseDate(t).getDay() + 6) % 7 === idx)
@@ -420,6 +449,8 @@ export function MetricsPanel({ trades, showPct = false, baseCapital = 0, account
       monthlyRows, byDow, byMonth, byWeekPadded, weekLabels,
       monthlyPctMap,
       dowStats,
+      lossesWithFavRR: lossesWithFavRR.length, nearWins: nearWins.length, deadTrades: deadTrades.length, avgFavorableRR,
+      winnersWithRR: winnersWithRR.length, avgEfficiency, avgMaxRR, rLeftOnTable,
     }
   }, [filteredTrades, accountSizeMap, baseCapital])
 
@@ -522,7 +553,102 @@ export function MetricsPanel({ trades, showPct = false, baseCapital = 0, account
         </div>
       </div>
 
-      {/* ── Row 3: Monthly table ── */}
+      {/* ── Row 3: Análisis de RR ── */}
+      {(s.lossesWithFavRR > 0 || s.winnersWithRR > 0) && (
+        <div>
+          <h3 style={{ color: "var(--text-1)", fontSize: "15px", fontWeight: "700", margin: "0 0 14px" }}>Análisis de RR</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "18px" }}>
+
+            {/* Card 1 — Calidad de pérdidas */}
+            <div style={{ ...card, border: "1px solid rgba(248,113,113,0.2)" }}>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: "14px" }}>
+                Calidad de pérdidas
+              </div>
+              {s.lossesWithFavRR > 0 ? (
+                <>
+                  <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+                    <div style={{ flex: 1, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: "12px", padding: "12px", textAlign: "center" }}>
+                      <div style={{ fontSize: "24px", fontWeight: "800", color: "#f59e0b" }}>{s.nearWins}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", fontWeight: "600" }}>Casi ganadoras</div>
+                      <div style={{ fontSize: "9px", color: "rgba(245,158,11,0.7)", marginTop: "2px" }}>≥ 0.5R a favor</div>
+                    </div>
+                    <div style={{ flex: 1, background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: "12px", padding: "12px", textAlign: "center" }}>
+                      <div style={{ fontSize: "24px", fontWeight: "800", color: "#f87171" }}>{s.deadTrades}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", fontWeight: "600" }}>Sin dirección</div>
+                      <div style={{ fontSize: "9px", color: "rgba(248,113,113,0.7)", marginTop: "2px" }}>&lt; 0.5R a favor</div>
+                    </div>
+                  </div>
+                  <div style={{ height: "6px", borderRadius: "999px", background: "var(--inner-bg)", overflow: "hidden", marginBottom: "8px" }}>
+                    <div style={{ height: "100%", width: `${s.lossesWithFavRR > 0 ? (s.nearWins / s.lossesWithFavRR) * 100 : 0}%`, background: "linear-gradient(90deg,#f59e0b,#d97706)", borderRadius: "999px" }} />
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                    {s.lossesWithFavRR} pérdidas analizadas
+                    {s.avgFavorableRR !== null && (
+                      <span style={{ display: "block", marginTop: "4px", color: "#f59e0b", fontWeight: "600" }}>
+                        Prom. RR favorable: {s.avgFavorableRR.toFixed(2)}R
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div style={{ color: "var(--text-muted)", fontSize: "12px" }}>Sin datos de RR favorable en pérdidas</div>
+              )}
+            </div>
+
+            {/* Card 2 — Eficiencia de captura */}
+            <div style={{ ...card, border: "1px solid rgba(96,165,250,0.2)" }}>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: "14px" }}>
+                Eficiencia de captura
+              </div>
+              {s.winnersWithRR > 0 && s.avgEfficiency !== null ? (
+                <>
+                  <div style={{ fontSize: "36px", fontWeight: "800", color: s.avgEfficiency >= 0.6 ? "#10b981" : s.avgEfficiency >= 0.4 ? "#f59e0b" : "#f87171", letterSpacing: "-0.02em", marginBottom: "4px" }}>
+                    {(s.avgEfficiency * 100).toFixed(0)}%
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "16px" }}>
+                    {s.avgEfficiency >= 0.7 ? "Capturás bien el movimiento" : s.avgEfficiency >= 0.45 ? "Salís antes del máximo" : "Salís muy antes del máximo"}
+                  </div>
+                  <div style={{ height: "6px", borderRadius: "999px", background: "var(--inner-bg)", overflow: "hidden", marginBottom: "10px" }}>
+                    <div style={{ height: "100%", width: `${(s.avgEfficiency * 100).toFixed(0)}%`, background: s.avgEfficiency >= 0.6 ? "linear-gradient(90deg,#10b981,#059669)" : s.avgEfficiency >= 0.4 ? "linear-gradient(90deg,#f59e0b,#d97706)" : "linear-gradient(90deg,#f87171,#ef4444)", borderRadius: "999px" }} />
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{s.winnersWithRR} ganadores analizados</div>
+                </>
+              ) : (
+                <div style={{ color: "var(--text-muted)", fontSize: "12px" }}>Sin datos de RR máximo en ganadores</div>
+              )}
+            </div>
+
+            {/* Card 3 — TP óptimo + R dejado en la mesa */}
+            <div style={{ ...card, border: "1px solid rgba(168,85,247,0.2)" }}>
+              <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.13em", marginBottom: "14px" }}>
+                TP óptimo histórico
+              </div>
+              {s.winnersWithRR > 0 && s.avgMaxRR !== null ? (
+                <>
+                  <div style={{ fontSize: "36px", fontWeight: "800", color: "#a855f7", letterSpacing: "-0.02em", marginBottom: "4px" }}>
+                    {s.avgMaxRR.toFixed(2)}R
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "18px" }}>
+                    Promedio RR máximo alcanzado en ganadores
+                  </div>
+                  <div style={{ padding: "12px 14px", borderRadius: "12px", background: "rgba(168,85,247,0.07)", border: "1px solid rgba(168,85,247,0.15)" }}>
+                    <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "6px" }}>R dejado en la mesa</div>
+                    <div style={{ fontSize: "20px", fontWeight: "800", color: "#a855f7" }}>
+                      {s.rLeftOnTable.toFixed(2)}R
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px" }}>acumulado en {s.winnersWithRR} ganadores</div>
+                  </div>
+                </>
+              ) : (
+                <div style={{ color: "var(--text-muted)", fontSize: "12px" }}>Sin datos de RR máximo en ganadores</div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ── Row 4: Monthly table ── */}
       {s.monthlyRows.length > 0 && (
         <div style={card}>
           <h3 style={{ margin: "0 0 18px", color: "var(--text-1)", fontSize: "15px", fontWeight: "700" }}>Rendimiento mensual</h3>
