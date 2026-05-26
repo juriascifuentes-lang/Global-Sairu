@@ -35,7 +35,7 @@ const defaultForm = {
   openTime: "", strategy: "", account: "",
   setupQuality: "", psychology: "",
   images: [], entryNote: "", entryImages: [],
-  stopLoss: "", takeProfit: "", maxRR: "",
+  stopLoss: "", takeProfit: "", maxRR: "", maxFavorableRR: "",
 }
 
 const parseAccountSize = (size) => {
