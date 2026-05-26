@@ -594,7 +594,7 @@ export function MetricsPanel({ trades, showPct = false, baseCapital = 0, account
                           Prom. RR favorable: {s.avgFavorableRR.toFixed(2)}R
                         </span>
                         <span style={{ display: "block", marginTop: "4px", color: "#10b981", fontWeight: "600" }}>
-                          {s.lossesWouldWin} se habrían ganado cerrando en {s.avgFavorableRR.toFixed(2)}R
+                          {s.lossesWouldWin} de {s.losses} pérdidas totales habrían ganado con TP en {s.avgFavorableRR.toFixed(2)}R
                         </span>
                       </>
                     )}
