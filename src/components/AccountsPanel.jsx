@@ -5,6 +5,7 @@ import {
   normalizeHeader, findHeaderRow, sliceUntilSectionEnd,
   parseXlsxFile, parseHtmlTable,
   isTradovateFormat, parseTradovateCSV,
+  isTradovateOrdersFormat, parseTradovateOrdersCSV,
   isDeepChartsFormat, parseDeepChartsCSV,
 } from "../utils/parseImport"
 
@@ -434,9 +435,15 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
           }
         }
 
-        // ── Detectar formato Tradovate ──
+        // ── Detectar formato Tradovate P&L ──
         if (isTradovateFormat(headers)) {
           await doImport(parseTradovateCSV(headers, rows, accountName), "Tradovate")
+          return
+        }
+
+        // ── Detectar formato Tradovate Orders ──
+        if (isTradovateOrdersFormat(headers)) {
+          await doImport(parseTradovateOrdersCSV(headers, rows, accountName), "Tradovate")
           return
         }
 

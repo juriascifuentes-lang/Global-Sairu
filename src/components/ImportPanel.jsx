@@ -12,6 +12,8 @@ import {
   parseHtmlTable,
   isTradovateFormat,
   parseTradovateCSV,
+  isTradovateOrdersFormat,
+  parseTradovateOrdersCSV,
   isDeepChartsFormat,
   parseDeepChartsCSV,
 } from "../utils/parseImport"
@@ -259,11 +261,21 @@ export function ImportPanel({ accounts, onImportTrades, onNavigate }) {
           }
         }
 
-        // ── Detectar formato Tradovate ──
+        // ── Detectar formato Tradovate P&L ──
         if (isTradovateFormat(headers)) {
           const validTrades = parseTradovateCSV(headers, rows, accountName)
           if (validTrades.length === 0)
             throw new Error("No se encontraron trades en el archivo de Tradovate.")
+          await onImportTrades(validTrades)
+          setMessage(`Importados ${validTrades.length} trades desde Tradovate.`)
+          return
+        }
+
+        // ── Detectar formato Tradovate Orders ──
+        if (isTradovateOrdersFormat(headers)) {
+          const validTrades = parseTradovateOrdersCSV(headers, rows, accountName)
+          if (validTrades.length === 0)
+            throw new Error("No se encontraron trades en el archivo de Tradovate Orders.")
           await onImportTrades(validTrades)
           setMessage(`Importados ${validTrades.length} trades desde Tradovate.`)
           return

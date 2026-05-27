@@ -260,6 +260,109 @@ export const parseTradovateCSV = (headers, rows, accountName) => {
   return trades
 }
 
+const FUTURES_POINT_VALUES = {
+  MNQ: 2, NQ: 20, ES: 50, MES: 5,
+  YM: 5, MYM: 0.5, RTY: 50, M2K: 5,
+  GC: 100, MGC: 10, CL: 1000, NG: 10000,
+  ZB: 1000, ZN: 1000, ZF: 1000, ZT: 2000,
+}
+
+export const isTradovateOrdersFormat = (headers) =>
+  headers.some((h) => h === "b s") &&
+  headers.some((h) => h === "fill time") &&
+  headers.some((h) => h === "avg fill price") &&
+  headers.some((h) => h === "status")
+
+export const parseTradovateOrdersCSV = (headers, rows, accountName) => {
+  const idx = (candidates) =>
+    candidates.reduce(
+      (found, c) => (found !== -1 ? found : headers.findIndex((h) => h === c || h.includes(c))),
+      -1
+    )
+
+  const bsIdx       = idx(["b s"])
+  const productIdx  = idx(["product"])
+  const contractIdx = idx(["contract"])
+  const priceIdx    = idx(["avg fill price"])
+  const qtyIdx      = idx(["filled qty"])
+  const timeIdx     = idx(["fill time"])
+  const statusIdx   = idx(["status"])
+  const notionalIdx = idx(["notional value"])
+
+  // FIFO open position queue per symbol: [{side, price, qty, time, multiplier}]
+  const positions = {}
+  const trades = []
+
+  for (const cells of rows) {
+    const status = normalizeCell(cells[statusIdx] || "").toLowerCase()
+    if (status !== "filled") continue
+
+    const bs       = normalizeCell(cells[bsIdx] || "").toLowerCase()
+    if (bs !== "buy" && bs !== "sell") continue
+
+    const contract = normalizeCell(cells[contractIdx] || "")
+    const product  = normalizeCell(cells[productIdx] || "")
+    const price    = parseNumber(normalizeCell(cells[priceIdx] || "0"))
+    const qty      = Math.abs(parseInt(normalizeCell(cells[qtyIdx] || "0")) || 0)
+    const fillTime = normalizeCell(cells[timeIdx] || "")
+    const notional = notionalIdx >= 0 ? parseNumber(normalizeCell(cells[notionalIdx] || "0")) : 0
+
+    if (!contract || !price || !qty || !fillTime) continue
+
+    // Use clean product symbol (MNQ) or strip month code from contract (MNQM6 → MNQ)
+    const symbol = product || contract.replace(/[A-Z]\d+$/, "") || contract
+    const upper  = symbol.toUpperCase()
+
+    // Derive multiplier from known table, then from notional, then fallback to 1
+    const multiplier =
+      FUTURES_POINT_VALUES[upper] ||
+      (notional && price && qty ? notional / (price * qty) : 1)
+
+    if (!positions[symbol]) positions[symbol] = []
+    const queue = positions[symbol]
+
+    let remaining = qty
+
+    while (remaining > 0 && queue.length > 0) {
+      const front = queue[0]
+      const isClosing = (bs === "buy" && front.side === "sell") || (bs === "sell" && front.side === "buy")
+      if (!isClosing) break
+
+      const matchQty = Math.min(remaining, front.qty)
+      remaining -= matchQty
+      front.qty -= matchQty
+
+      const pnl = front.side === "buy"
+        ? (price - front.price) * matchQty * front.multiplier
+        : (front.price - price) * matchQty * front.multiplier
+
+      const { date, time } = parseDateString(front.time)
+      if (date) {
+        trades.push({
+          symbol,
+          type:      front.side === "buy" ? "BUY" : "SELL",
+          profit:    pnl.toFixed(2),
+          date,
+          openTime:  time,
+          account:   accountName,
+          note:      `Tradovate | Contratos: ${matchQty}`,
+          strategy:  "",
+          stopLoss:  null,
+          takeProfit: null,
+        })
+      }
+
+      if (front.qty === 0) queue.shift()
+    }
+
+    if (remaining > 0) {
+      queue.push({ side: bs, price, qty: remaining, time: fillTime, multiplier })
+    }
+  }
+
+  return trades
+}
+
 export const isDeepChartsFormat = (headers) =>
   headers.some((h) => h === "entry date") &&
   headers.some((h) => h === "exit date") &&
