@@ -85,8 +85,8 @@ function DualEquityCurve({ realTrades, reviewTrades }) {
         date: p.date,
       }))
 
-    const realCoords = toCoords(realPoints)
-    const revCoords = toCoords(revPoints)
+    const realCoords = realPoints.length > 0 ? toCoords(realPoints) : []
+    const revCoords = revPoints.length > 0 ? toCoords(revPoints) : []
 
     const allDates = [...realPoints, ...revPoints].map((p) => p.date).sort((a, b) => a - b)
     const fmtDate = (d) => d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" })
@@ -94,8 +94,8 @@ function DualEquityCurve({ realTrades, reviewTrades }) {
     return {
       realPath: smoothBezier(realCoords),
       revPath: smoothBezier(revCoords),
-      realLast: realCoords[realCoords.length - 1],
-      revLast: revCoords[revCoords.length - 1],
+      realLast: realCoords.length > 0 ? realCoords[realCoords.length - 1] : null,
+      revLast: revCoords.length > 0 ? revCoords[revCoords.length - 1] : null,
       xLabels: [fmtDate(allDates[0]), fmtDate(allDates[allDates.length - 1])],
       yLabels: [0, 1, 2, 3, 4].map((i) => {
         const v = maxVal - (i / 4) * range
@@ -144,12 +144,20 @@ function DualEquityCurve({ realTrades, reviewTrades }) {
             {[4, 22, 40, 58, 76].map((y) => (
               <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="#334155" strokeWidth="0.5" vectorEffect="non-scaling-stroke" opacity="0.5" />
             ))}
-            <path d={`${data.realPath} L${data.realLast.x.toFixed(2)},80 L1,80 Z`} fill="url(#dualRed)" />
-            <path d={data.realPath} fill="none" stroke="#f87171" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-            <circle cx={data.realLast.x} cy={data.realLast.y} r="1.5" fill="#f87171" stroke="var(--card-bg)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
-            <path d={`${data.revPath} L${data.revLast.x.toFixed(2)},80 L1,80 Z`} fill="url(#dualPurple)" />
-            <path d={data.revPath} fill="none" stroke="#a855f7" strokeWidth="1.5" strokeDasharray="3 2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-            <circle cx={data.revLast.x} cy={data.revLast.y} r="1.5" fill="#a855f7" stroke="var(--card-bg)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            {data.realLast && (
+              <>
+                <path d={`${data.realPath} L${data.realLast.x.toFixed(2)},80 L1,80 Z`} fill="url(#dualRed)" />
+                <path d={data.realPath} fill="none" stroke="#f87171" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                <circle cx={data.realLast.x} cy={data.realLast.y} r="1.5" fill="#f87171" stroke="var(--card-bg)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+              </>
+            )}
+            {data.revLast && (
+              <>
+                <path d={`${data.revPath} L${data.revLast.x.toFixed(2)},80 L1,80 Z`} fill="url(#dualPurple)" />
+                <path d={data.revPath} fill="none" stroke="#a855f7" strokeWidth="1.5" strokeDasharray="3 2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                <circle cx={data.revLast.x} cy={data.revLast.y} r="1.5" fill="#a855f7" stroke="var(--card-bg)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+              </>
+            )}
           </svg>
         </div>
       </div>
