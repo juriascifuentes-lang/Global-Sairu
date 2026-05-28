@@ -19,7 +19,10 @@ const NT8_POINT_VALUES = {
 const isNinjaTraderFormat = (headers) =>
   headers.some((h) => h === "instrumento") &&
   headers.some((h) => h === "accion") &&
-  headers.some((h) => h === "e x" || h === "e/x")
+  headers.some((h) => h === "precio") &&
+  (headers.some((h) => h === "e x" || h === "e/x") ||
+   headers.some((h) => h === "posicion") ||
+   headers.some((h) => h.includes("id de orden")))
 
 const parseNinjaTraderExecutions = (headers, rows, accountName) => {
   const idx = (candidates) =>
@@ -40,7 +43,9 @@ const parseNinjaTraderExecutions = (headers, rows, accountName) => {
       quantity: Math.abs(parseInt(normalizeCell(cells[qIdx])) || 1),
       price:    parseNumber(normalizeCell(cells[pIdx])),
       rawTime:  normalizeCell(cells[tIdx]),
-      isEntry:  normalizeCell(cells[exIdx]).toLowerCase().includes("entrada"),
+      isEntry:  exIdx !== -1
+        ? normalizeCell(cells[exIdx]).toLowerCase().includes("entrada")
+        : (posIdx !== -1 && normalizeCell(cells[posIdx]) !== "-" && normalizeCell(cells[posIdx]) !== ""),
       posicion: posIdx !== -1 ? normalizeCell(cells[posIdx]) : "",
     }))
     .filter((e) => e.symbol && e.price > 0)
@@ -98,6 +103,84 @@ const parseNinjaTraderExecutions = (headers, rows, accountName) => {
     }
   }
   return result
+}
+
+const isNinjaTraderOrdersFormat = (headers) =>
+  headers.some((h) => h === "instrumento") &&
+  headers.some((h) => h === "accion") &&
+  headers.some((h) => h.includes("precio promedio")) &&
+  headers.some((h) => h === "estado")
+
+const parseNinjaTraderOrders = (headers, rows, accountName) => {
+  const idx = (candidates) =>
+    candidates.reduce((found, c) => (found !== -1 ? found : headers.findIndex((h) => h === c || h.includes(c))), -1)
+
+  const iIdx    = idx(["instrumento"])
+  const aIdx    = idx(["accion"])
+  const compIdx = idx(["completo"])
+  const prIdx   = idx(["precio promedio"])
+  const tIdx    = idx(["tiempo"])
+
+  const filled = rows
+    .map((cells) => {
+      const qty   = Math.abs(parseInt(normalizeCell(cells[compIdx])) || 0)
+      const price = parseNumber(normalizeCell(cells[prIdx]))
+      if (!qty || !price) return null
+      return {
+        symbol:  normalizeCell(cells[iIdx]),
+        isBuy:   normalizeCell(cells[aIdx]).toLowerCase().includes("comprar"),
+        qty, price,
+        rawTime: normalizeCell(cells[tIdx]),
+      }
+    })
+    .filter((o) => o && o.symbol && o.price > 0)
+    .sort((a, b) => {
+      const { date: da, time: ta } = parseDateString(a.rawTime)
+      const { date: db, time: tb } = parseDateString(b.rawTime)
+      return `${da} ${ta}`.localeCompare(`${db} ${tb}`)
+    })
+
+  const positions = {}
+  const trades = []
+
+  for (const order of filled) {
+    const sym  = order.symbol
+    const base = sym.split(" ")[0].replace(/[0-9]/g, "")
+    const pv   = NT8_POINT_VALUES[base] ?? 1
+
+    if (!positions[sym]) positions[sym] = []
+    const queue = positions[sym]
+    let remaining = order.qty
+
+    while (remaining > 0 && queue.length > 0 && queue[0].isBuy !== order.isBuy) {
+      const entry    = queue[0]
+      const matchQty = Math.min(remaining, entry.qty)
+      const pnl      = entry.isBuy
+        ? (order.price - entry.price) * pv * matchQty
+        : (entry.price - order.price) * pv * matchQty
+
+      const { date, time } = parseDateString(entry.rawTime)
+      if (date) {
+        trades.push({
+          symbol: sym, type: entry.isBuy ? "BUY" : "SELL",
+          profit: pnl.toFixed(2), date, openTime: time,
+          account: accountName,
+          note:   `NinjaTrader | Contratos: ${matchQty}`,
+          strategy: "", stopLoss: null, takeProfit: null,
+        })
+      }
+
+      entry.qty -= matchQty
+      remaining -= matchQty
+      if (entry.qty <= 0) queue.shift()
+    }
+
+    if (remaining > 0) {
+      queue.push({ isBuy: order.isBuy, price: order.price, qty: remaining, rawTime: order.rawTime })
+    }
+  }
+
+  return trades
 }
 
 const inputStyle = {
@@ -453,9 +536,15 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
           return
         }
 
-        // ── Detectar formato NinjaTrader ──
+        // ── Detectar formato NinjaTrader Ejecuciones ──
         if (isNinjaTraderFormat(headers)) {
           await doImport(parseNinjaTraderExecutions(headers, rows, accountName), "NinjaTrader")
+          return
+        }
+
+        // ── Detectar formato NinjaTrader Órdenes ──
+        if (isNinjaTraderOrdersFormat(headers)) {
+          await doImport(parseNinjaTraderOrders(headers, rows, accountName), "NinjaTrader")
           return
         }
 
