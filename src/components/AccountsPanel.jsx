@@ -20,9 +20,7 @@ const isNinjaTraderFormat = (headers) =>
   headers.some((h) => h === "instrumento") &&
   headers.some((h) => h === "accion") &&
   headers.some((h) => h === "precio") &&
-  (headers.some((h) => h === "e x" || h === "e/x") ||
-   headers.some((h) => h === "posicion") ||
-   headers.some((h) => h.includes("id de orden")))
+  !headers.some((h) => h.includes("precio promedio"))
 
 const parseNinjaTraderExecutions = (headers, rows, accountName) => {
   const idx = (candidates) =>
@@ -36,18 +34,84 @@ const parseNinjaTraderExecutions = (headers, rows, accountName) => {
   const exIdx  = idx(["e x", "e/x"])
   const posIdx = idx(["posicion"])
 
+  // Sin columna E/X ni Posición: FIFO puro (compras vs ventas)
+  if (exIdx === -1 && posIdx === -1) {
+    const fills = rows
+      .map((cells) => ({
+        symbol:  normalizeCell(cells[iIdx]),
+        isBuy:   normalizeCell(cells[aIdx]).toLowerCase().includes("comprar"),
+        qty:     Math.abs(parseInt(normalizeCell(cells[qIdx])) || 1),
+        price:   parseNumber(normalizeCell(cells[pIdx])),
+        rawTime: normalizeCell(cells[tIdx]),
+      }))
+      .filter((f) => f.symbol && f.price > 0)
+      .sort((a, b) => {
+        const { date: da, time: ta } = parseDateString(a.rawTime)
+        const { date: db, time: tb } = parseDateString(b.rawTime)
+        return `${da} ${ta}`.localeCompare(`${db} ${tb}`)
+      })
+
+    const positions = {}
+    const result = []
+
+    for (const fill of fills) {
+      const sym  = fill.symbol
+      const base = sym.split(" ")[0].replace(/[0-9]/g, "")
+      const pv   = NT8_POINT_VALUES[base] ?? 1
+
+      if (!positions[sym]) positions[sym] = []
+      const queue = positions[sym]
+      let remaining = fill.qty
+
+      while (remaining > 0 && queue.length > 0 && queue[0].isBuy !== fill.isBuy) {
+        const entry    = queue[0]
+        const matchQty = Math.min(remaining, entry.qty)
+        const pnl      = entry.isBuy
+          ? (fill.price - entry.price) * pv * matchQty
+          : (entry.price - fill.price) * pv * matchQty
+
+        const { date, time } = parseDateString(entry.rawTime)
+        if (date) {
+          result.push({
+            symbol: sym, type: entry.isBuy ? "BUY" : "SELL",
+            profit: pnl.toFixed(2), date, openTime: time,
+            account: accountName,
+            note: `NinjaTrader | Contratos: ${matchQty}`,
+            strategy: "", stopLoss: null, takeProfit: null,
+          })
+        }
+
+        entry.qty -= matchQty
+        remaining -= matchQty
+        if (entry.qty <= 0) queue.shift()
+      }
+
+      if (remaining > 0) {
+        queue.push({ isBuy: fill.isBuy, price: fill.price, qty: remaining, rawTime: fill.rawTime })
+      }
+    }
+
+    return result
+  }
+
+  // Con E/X o Posición: usar entrada/salida explícita
   const executions = rows
-    .map((cells) => ({
-      symbol:   normalizeCell(cells[iIdx]),
-      isBuy:    normalizeCell(cells[aIdx]).toLowerCase().includes("comprar"),
-      quantity: Math.abs(parseInt(normalizeCell(cells[qIdx])) || 1),
-      price:    parseNumber(normalizeCell(cells[pIdx])),
-      rawTime:  normalizeCell(cells[tIdx]),
-      isEntry:  exIdx !== -1
-        ? normalizeCell(cells[exIdx]).toLowerCase().includes("entrada")
-        : (posIdx !== -1 && normalizeCell(cells[posIdx]) !== "-" && normalizeCell(cells[posIdx]) !== ""),
-      posicion: posIdx !== -1 ? normalizeCell(cells[posIdx]) : "",
-    }))
+    .map((cells) => {
+      const exVal  = exIdx !== -1 ? normalizeCell(cells[exIdx]).toLowerCase() : null
+      const posVal = posIdx !== -1 ? normalizeCell(cells[posIdx]) : ""
+      const isEntry = exVal !== null
+        ? exVal.includes("entrada")
+        : (posVal !== "" && posVal !== "-" && posVal !== "0")
+      return {
+        symbol:   normalizeCell(cells[iIdx]),
+        isBuy:    normalizeCell(cells[aIdx]).toLowerCase().includes("comprar"),
+        quantity: Math.abs(parseInt(normalizeCell(cells[qIdx])) || 1),
+        price:    parseNumber(normalizeCell(cells[pIdx])),
+        rawTime:  normalizeCell(cells[tIdx]),
+        isEntry,
+        posicion: posVal,
+      }
+    })
     .filter((e) => e.symbol && e.price > 0)
     .sort((a, b) => {
       const { date: da, time: ta } = parseDateString(a.rawTime)
