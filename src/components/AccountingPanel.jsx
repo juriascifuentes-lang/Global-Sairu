@@ -50,6 +50,7 @@ export function AccountingPanel({ userId }) {
   const [saving, setSaving] = useState(false)
   const [filterMonth, setFilterMonth] = useState("")
   const [filterCategory, setFilterCategory] = useState("")
+  const [filterCompany, setFilterCompany] = useState("")
 
   useEffect(() => { if (userId) load() }, [userId])
 
@@ -111,9 +112,14 @@ export function AccountingPanel({ userId }) {
     .filter((e) => {
       if (filterMonth && !e.entry_date.startsWith(filterMonth)) return false
       if (filterCategory && e.category !== filterCategory) return false
+      if (filterCompany && e.company !== filterCompany) return false
       return true
     })
     .sort((a, b) => new Date(b.entry_date) - new Date(a.entry_date))
+
+  const companiesInData = [...new Set(
+    entries.filter((e) => e.category === "Prop Firms" && e.company).map((e) => e.company)
+  )].sort()
 
   const gastos   = entries.filter((e) => !isRetiro(e))
   const retiros  = entries.filter((e) => isRetiro(e))
@@ -212,7 +218,7 @@ export function AccountingPanel({ userId }) {
           </select>
           <select
             value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
+            onChange={(e) => { setFilterCategory(e.target.value); setFilterCompany("") }}
             style={{
               background: "var(--inner-bg)", border: "1px solid var(--border-input)",
               color: filterCategory ? "var(--text-1)" : "var(--text-muted)",
@@ -226,6 +232,24 @@ export function AccountingPanel({ userId }) {
               <option key={c.key} value={c.key}>{c.key}</option>
             ))}
           </select>
+          {filterCategory === "Prop Firms" && companiesInData.length > 0 && (
+            <select
+              value={filterCompany}
+              onChange={(e) => setFilterCompany(e.target.value)}
+              style={{
+                background: "var(--inner-bg)", border: "1px solid rgba(245,158,11,0.4)",
+                color: filterCompany ? "var(--text-1)" : "var(--text-muted)",
+                padding: "9px 14px", borderRadius: "10px", fontSize: "13px",
+                outline: "none", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
+                minWidth: "150px",
+              }}
+            >
+              <option value="">Todas las empresas</option>
+              {companiesInData.map((co) => (
+                <option key={co} value={co}>{co}</option>
+              ))}
+            </select>
+          )}
           {/* Agregar retiro */}
           <button
             onClick={() => openAdd("retiro")}
