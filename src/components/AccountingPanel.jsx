@@ -285,60 +285,6 @@ export function AccountingPanel({ userId }) {
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "16px" }}>
-        {/* Total gastos */}
-        <div style={{ ...card, borderTop: "3px solid #f87171" }}>
-          <div style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", marginBottom: "8px" }}>
-            Total gastos
-          </div>
-          <div style={{ fontSize: "26px", fontWeight: "800", color: "#f87171", letterSpacing: "-0.02em" }}>
-            -{fmt(totalGastos)}
-          </div>
-          <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
-            {gastos.length} entrada{gastos.length !== 1 ? "s" : ""}
-          </div>
-        </div>
-
-        {/* Total retiros */}
-        <div style={{ ...card, borderTop: "3px solid #10b981" }}>
-          <div style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", marginBottom: "8px" }}>
-            Total retiros
-          </div>
-          <div style={{ fontSize: "26px", fontWeight: "800", color: "#10b981", letterSpacing: "-0.02em" }}>
-            {totalRetiros > 0 ? `+${fmt(totalRetiros)}` : fmt(0)}
-          </div>
-          <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
-            {retiros.length} entrada{retiros.length !== 1 ? "s" : ""}
-          </div>
-        </div>
-
-        {/* Neto */}
-        <div style={{ ...card, borderTop: `3px solid ${netoColor}` }}>
-          <div style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", marginBottom: "8px" }}>
-            Neto
-          </div>
-          <div style={{ fontSize: "26px", fontWeight: "800", color: netoColor, letterSpacing: "-0.02em" }}>
-            {neto > 0 ? `+${fmt(neto)}` : neto < 0 ? `-${fmt(neto)}` : fmt(0)}
-          </div>
-          <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
-            retiros − gastos
-          </div>
-        </div>
-
-        {/* Este mes (gastos) */}
-        <div style={{ ...card, borderTop: "3px solid #f59e0b" }}>
-          <div style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", marginBottom: "8px" }}>
-            Gastos este mes
-          </div>
-          <div style={{ fontSize: "26px", fontWeight: "800", color: "#f59e0b", letterSpacing: "-0.02em" }}>
-            {gastosThisMonth > 0 ? `-${fmt(gastosThisMonth)}` : fmt(0)}
-          </div>
-          <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
-            {new Date().toLocaleString("es-MX", { month: "long", year: "numeric" })}
-          </div>
-        </div>
-      </div>
 
       {/* Category breakdown — solo gastos */}
       {byCategory.length > 0 && (
