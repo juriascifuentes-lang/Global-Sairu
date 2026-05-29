@@ -22,6 +22,7 @@ import { AdminPanel } from "./components/AdminPanel"
 import { ConnectMT5Panel } from "./components/ConnectMT5Panel"
 import { CopyTradingPanel } from "./components/CopyTradingPanel"
 import { ReviewComparative } from "./components/ReviewComparative"
+import { AccountingPanel } from "./components/AccountingPanel"
 import { ConfirmModal } from "./components/ConfirmModal"
 import {
   RecentTradesWidget,
@@ -494,6 +495,11 @@ function App() {
 
         {/* ─── CONNECT MT5 ─── */}
         {activePage === "CONNECT_MT5" && <ConnectMT5Panel accounts={accounts} userId={userId} onImportTrades={importTrades} />}
+
+        {/* ─── CONTABILIDAD ─── */}
+        {activePage === "ACCOUNTING" && session?.user?.email === "juriascifuentes@gmail.com" && (
+          <AccountingPanel userId={userId} />
+        )}
 
         {/* ─── COPY TRADING ─── */}
         {activePage === "COPY_TRADING" && (
