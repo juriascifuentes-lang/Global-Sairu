@@ -18,12 +18,18 @@ const isRetiro = (e) => e.entry_type === "retiro"
 
 const PROP_FIRM_SUBCATEGORIES = ["Futuros", "Forex / CFDs"]
 
+const PROP_FIRM_COMPANIES = {
+  "Futuros":     ["Lucid Trading", "Alpha Futures", "Tradeify", "Topstep", "Apex"],
+  "Forex / CFDs": ["FTMO", "WSF", "ORION", "The 5%ers", "Funding Pips"],
+}
+
 const defaultForm = {
   id: null,
   name: "",
   amount: "",
   category: "Prop Firms",
   subcategory: "Futuros",
+  company: "",
   date: new Date().toISOString().slice(0, 10),
   notes: "",
   entry_type: "gasto",
@@ -63,6 +69,7 @@ export function AccountingPanel({ userId }) {
     setForm({
       id: e.id, name: e.name, amount: String(e.amount),
       category: e.category, subcategory: e.subcategory || "Futuros",
+      company: e.company || "",
       date: e.entry_date, notes: e.notes || "",
       entry_type: e.entry_type || "gasto",
     })
@@ -78,6 +85,7 @@ export function AccountingPanel({ userId }) {
       amount: parseFloat(form.amount),
       category: form.category,
       subcategory: form.category === "Prop Firms" ? form.subcategory : null,
+      company: form.category === "Prop Firms" ? (form.company || null) : null,
       entry_date: form.date,
       notes: form.notes.trim() || null,
       entry_type: form.entry_type,
@@ -126,11 +134,22 @@ export function AccountingPanel({ userId }) {
       const catEntries = gastos.filter((e) => e.category === c.key)
       const total = catEntries.reduce((s, e) => s + Number(e.amount), 0)
       const subcats = c.key === "Prop Firms"
-        ? PROP_FIRM_SUBCATEGORIES.map((sub) => ({
-            key: sub,
-            total: catEntries.filter((e) => e.subcategory === sub).reduce((s, e) => s + Number(e.amount), 0),
-            count: catEntries.filter((e) => e.subcategory === sub).length,
-          })).filter((s) => s.total > 0)
+        ? PROP_FIRM_SUBCATEGORIES.map((sub) => {
+            const subEntries = catEntries.filter((e) => e.subcategory === sub)
+            const subTotal = subEntries.reduce((s, e) => s + Number(e.amount), 0)
+            const companies = (PROP_FIRM_COMPANIES[sub] || [])
+              .map((co) => {
+                const coEntries = subEntries.filter((e) => e.company === co)
+                return { key: co, total: coEntries.reduce((s, e) => s + Number(e.amount), 0), count: coEntries.length }
+              })
+              .filter((co) => co.total > 0)
+            const uncategorized = subEntries.filter((e) => !e.company)
+            if (uncategorized.length > 0) {
+              const uTotal = uncategorized.reduce((s, e) => s + Number(e.amount), 0)
+              if (uTotal > 0) companies.push({ key: "Otros", total: uTotal, count: uncategorized.length })
+            }
+            return { key: sub, total: subTotal, count: subEntries.length, companies }
+          }).filter((s) => s.total > 0)
         : []
       return { ...c, total, count: catEntries.length, subcats }
     })
@@ -321,7 +340,7 @@ export function AccountingPanel({ userId }) {
                     <div style={{ height: "100%", width: `${pct}%`, background: c.color, borderRadius: "3px", transition: "width 0.4s" }} />
                   </div>
                   {c.subcats?.length > 0 && (
-                    <div style={{ marginTop: "10px", paddingLeft: "12px", display: "flex", flexDirection: "column", gap: "8px", borderLeft: `2px solid ${c.color}30` }}>
+                    <div style={{ marginTop: "10px", paddingLeft: "12px", display: "flex", flexDirection: "column", gap: "10px", borderLeft: `2px solid ${c.color}30` }}>
                       {c.subcats.map((s) => {
                         const subPct = c.total > 0 ? (s.total / c.total) * 100 : 0
                         return (
@@ -340,6 +359,21 @@ export function AccountingPanel({ userId }) {
                             <div style={{ height: "3px", borderRadius: "2px", background: "rgba(148,163,184,0.08)", overflow: "hidden" }}>
                               <div style={{ height: "100%", width: `${subPct}%`, background: c.color, opacity: 0.5, borderRadius: "2px", transition: "width 0.4s" }} />
                             </div>
+                            {/* Empresas */}
+                            {s.companies?.length > 0 && (
+                              <div style={{ marginTop: "6px", paddingLeft: "12px", display: "flex", flexDirection: "column", gap: "3px", borderLeft: `1px solid ${c.color}20` }}>
+                                {s.companies.map((co) => (
+                                  <div key={co.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                                      <div style={{ width: "3px", height: "3px", borderRadius: "50%", background: c.color, opacity: 0.4 }} />
+                                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{co.key}</span>
+                                      <span style={{ fontSize: "10px", color: "var(--text-muted)", opacity: 0.5 }}>{co.count}</span>
+                                    </div>
+                                    <span style={{ fontSize: "11px", fontWeight: "600", color: c.color, opacity: 0.7 }}>-{fmt(co.total)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )
                       })}
@@ -410,7 +444,7 @@ export function AccountingPanel({ userId }) {
                     </span>
                     {entry.subcategory && (
                       <span style={{ fontSize: "10px", color: "var(--text-muted)", paddingLeft: "2px" }}>
-                        {entry.subcategory}
+                        {entry.subcategory}{entry.company ? ` · ${entry.company}` : ""}
                       </span>
                     )}
                   </div>
@@ -557,32 +591,49 @@ export function AccountingPanel({ userId }) {
               </div>
 
               {form.category === "Prop Firms" && (
-                <div>
-                  <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                    Tipo de cuenta <span style={{ color: "#f87171" }}>*</span>
-                  </label>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    {PROP_FIRM_SUBCATEGORIES.map((sub) => (
-                      <button
-                        key={sub}
-                        type="button"
-                        onClick={() => setForm((p) => ({ ...p, subcategory: sub }))}
-                        style={{
-                          flex: 1, padding: "10px 14px", borderRadius: "10px", border: "none",
-                          background: form.subcategory === sub ? "rgba(245,158,11,0.15)" : "var(--inner-bg)",
-                          color: form.subcategory === sub ? "#f59e0b" : "var(--text-muted)",
-                          fontWeight: form.subcategory === sub ? "700" : "500",
-                          fontSize: "13px", cursor: "pointer",
-                          outline: form.subcategory === sub ? "1.5px solid rgba(245,158,11,0.4)" : "1px solid var(--border-input)",
-                          transition: "all 0.12s",
-                          fontFamily: "Inter, Arial, sans-serif",
-                        }}
-                      >
-                        {sub}
-                      </button>
-                    ))}
+                <>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                      Tipo de cuenta <span style={{ color: "#f87171" }}>*</span>
+                    </label>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      {PROP_FIRM_SUBCATEGORIES.map((sub) => (
+                        <button
+                          key={sub}
+                          type="button"
+                          onClick={() => setForm((p) => ({ ...p, subcategory: sub, company: "" }))}
+                          style={{
+                            flex: 1, padding: "10px 14px", borderRadius: "10px", border: "none",
+                            background: form.subcategory === sub ? "rgba(245,158,11,0.15)" : "var(--inner-bg)",
+                            color: form.subcategory === sub ? "#f59e0b" : "var(--text-muted)",
+                            fontWeight: form.subcategory === sub ? "700" : "500",
+                            fontSize: "13px", cursor: "pointer",
+                            outline: form.subcategory === sub ? "1.5px solid rgba(245,158,11,0.4)" : "1px solid var(--border-input)",
+                            transition: "all 0.12s",
+                            fontFamily: "Inter, Arial, sans-serif",
+                          }}
+                        >
+                          {sub}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                      Empresa
+                    </label>
+                    <select
+                      value={form.company}
+                      onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))}
+                      style={{ ...inputStyle, cursor: "pointer" }}
+                    >
+                      <option value="">— Seleccionar empresa —</option>
+                      {(PROP_FIRM_COMPANIES[form.subcategory] || []).map((co) => (
+                        <option key={co} value={co}>{co}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
               )}
 
               <div>
