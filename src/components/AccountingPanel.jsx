@@ -107,11 +107,13 @@ export function AccountingPanel({ userId }) {
     setEntries((prev) => prev.filter((e) => e.id !== entry.id))
   }
 
-  const filtered = entries.filter((e) => {
-    if (filterMonth && !e.entry_date.startsWith(filterMonth)) return false
-    if (filterCategory && e.category !== filterCategory) return false
-    return true
-  })
+  const filtered = entries
+    .filter((e) => {
+      if (filterMonth && !e.entry_date.startsWith(filterMonth)) return false
+      if (filterCategory && e.category !== filterCategory) return false
+      return true
+    })
+    .sort((a, b) => new Date(b.entry_date) - new Date(a.entry_date))
 
   const gastos   = entries.filter((e) => !isRetiro(e))
   const retiros  = entries.filter((e) => isRetiro(e))
