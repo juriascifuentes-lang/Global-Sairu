@@ -372,6 +372,32 @@ export function AccountingPanel({ userId }) {
           </div>
         ) : (
           <>
+            {/* Resumen conteo */}
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "14px", flexWrap: "wrap" }}>
+              {(() => {
+                const nGastos  = filtered.filter((e) => !isRetiro(e)).length
+                const nRetiros = filtered.filter((e) => isRetiro(e)).length
+                return (
+                  <>
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                      <span style={{ fontWeight: "700", color: "#f87171" }}>{nGastos}</span>
+                      {" "}gasto{nGastos !== 1 ? "s" : ""}
+                    </span>
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)", opacity: 0.3 }}>·</span>
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                      <span style={{ fontWeight: "700", color: "#10b981" }}>{nRetiros}</span>
+                      {" "}retiro{nRetiros !== 1 ? "s" : ""}
+                    </span>
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)", opacity: 0.3 }}>·</span>
+                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                      <span style={{ fontWeight: "700", color: "var(--text-1)" }}>{filtered.length}</span>
+                      {" "}en total
+                    </span>
+                  </>
+                )
+              })()}
+            </div>
+
             <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 72px", gap: "8px", padding: "0 12px 10px", borderBottom: "1px solid var(--border-nav)", marginBottom: "4px" }}>
               {["Nombre", "Categoría", "Fecha", "Monto", ""].map((h) => (
                 <span key={h} style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>{h}</span>
