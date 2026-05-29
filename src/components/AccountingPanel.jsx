@@ -44,9 +44,12 @@ function DateRangePicker({ fromDate, toDate, onFromChange, onToChange }) {
   }
 
   const handleDayClick = (iso) => {
-    if (step === 1) { onFromChange(iso); onToChange(""); setStep(2) }
-    else {
-      if (fromDate && iso < fromDate) { onFromChange(iso); onToChange(""); setStep(2) }
+    if (step === 1) {
+      onFromChange(iso)
+      if (toDate && iso > toDate) onToChange("")
+      setStep(2)
+    } else {
+      if (fromDate && iso < fromDate) { onFromChange(iso); setStep(2) }
       else { onToChange(iso); setOpen(false); setHoverDate(null) }
     }
   }
@@ -144,7 +147,11 @@ function DateRangePicker({ fromDate, toDate, onFromChange, onToChange }) {
           </div>
           <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid rgba(148,163,184,0.08)", display: "flex", gap: "8px" }}>
             <button type="button"
-              onClick={() => { const t = formatIso(new Date()); onFromChange(t); onToChange(t); setOpen(false); setHoverDate(null) }}
+              onClick={() => {
+                const t = formatIso(new Date())
+                if (step === 1) { onFromChange(t); if (toDate && t > toDate) onToChange(""); setStep(2) }
+                else { onToChange(t); setOpen(false); setHoverDate(null) }
+              }}
               style={{
                 flex: 1, padding: "8px", borderRadius: "9px", border: "1px solid rgba(16,185,129,0.35)",
                 background: "rgba(16,185,129,0.08)", color: "#10b981",
