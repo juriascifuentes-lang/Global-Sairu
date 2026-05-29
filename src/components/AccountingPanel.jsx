@@ -48,7 +48,8 @@ export function AccountingPanel({ userId }) {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(defaultForm)
   const [saving, setSaving] = useState(false)
-  const [filterMonth, setFilterMonth] = useState("")
+  const [filterFrom, setFilterFrom] = useState("")
+  const [filterTo, setFilterTo] = useState("")
   const [filterCategory, setFilterCategory] = useState("")
   const [filterCompany, setFilterCompany] = useState("")
 
@@ -110,7 +111,8 @@ export function AccountingPanel({ userId }) {
 
   const filtered = entries
     .filter((e) => {
-      if (filterMonth && !e.entry_date.startsWith(filterMonth)) return false
+      if (filterFrom && e.entry_date < filterFrom) return false
+      if (filterTo && e.entry_date > filterTo) return false
       if (filterCategory && e.category !== filterCategory) return false
       if (filterCompany && e.company !== filterCompany) return false
       return true
@@ -200,22 +202,59 @@ export function AccountingPanel({ userId }) {
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-          <select
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(e.target.value)}
-            style={{
-              background: "var(--inner-bg)", border: "1px solid var(--border-input)",
-              color: filterMonth ? "var(--text-1)" : "var(--text-muted)",
-              padding: "9px 14px", borderRadius: "10px", fontSize: "13px",
-              outline: "none", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
-              minWidth: "140px",
-            }}
-          >
-            <option value="">Todos los meses</option>
-            {months.map((m) => (
-              <option key={m} value={m}>{monthLabel(m)}</option>
-            ))}
-          </select>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ position: "relative" }}>
+              <span style={{
+                position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)",
+                fontSize: "10px", fontWeight: "700", color: "var(--text-muted)",
+                textTransform: "uppercase", letterSpacing: "0.08em", pointerEvents: "none",
+                display: filterFrom ? "none" : "block",
+              }}>Desde</span>
+              <input
+                type="date"
+                value={filterFrom}
+                onChange={(e) => setFilterFrom(e.target.value)}
+                style={{
+                  background: "var(--inner-bg)", border: "1px solid var(--border-input)",
+                  color: filterFrom ? "var(--text-1)" : "transparent",
+                  padding: "9px 12px", borderRadius: "10px", fontSize: "13px",
+                  outline: "none", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
+                  width: "140px",
+                }}
+              />
+            </div>
+            <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>—</span>
+            <div style={{ position: "relative" }}>
+              <span style={{
+                position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)",
+                fontSize: "10px", fontWeight: "700", color: "var(--text-muted)",
+                textTransform: "uppercase", letterSpacing: "0.08em", pointerEvents: "none",
+                display: filterTo ? "none" : "block",
+              }}>Hasta</span>
+              <input
+                type="date"
+                value={filterTo}
+                onChange={(e) => setFilterTo(e.target.value)}
+                style={{
+                  background: "var(--inner-bg)", border: "1px solid var(--border-input)",
+                  color: filterTo ? "var(--text-1)" : "transparent",
+                  padding: "9px 12px", borderRadius: "10px", fontSize: "13px",
+                  outline: "none", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
+                  width: "140px",
+                }}
+              />
+            </div>
+            {(filterFrom || filterTo) && (
+              <button
+                onClick={() => { setFilterFrom(""); setFilterTo("") }}
+                title="Limpiar fechas"
+                style={{
+                  background: "none", border: "none", color: "var(--text-muted)",
+                  cursor: "pointer", fontSize: "16px", lineHeight: 1, padding: "4px",
+                }}
+              >✕</button>
+            )}
+          </div>
           <select
             value={filterCategory}
             onChange={(e) => { setFilterCategory(e.target.value); setFilterCompany("") }}
