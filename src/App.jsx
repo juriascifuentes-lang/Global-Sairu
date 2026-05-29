@@ -140,6 +140,12 @@ function App() {
     }
   }, [])
 
+  // Detectar retorno del OAuth de Tradovate (?tradovate=success|error)
+  const [pendingTvNotif, setPendingTvNotif] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get("tradovate") || null
+  })
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
@@ -192,6 +198,18 @@ function App() {
     const duration = Math.max(4000, message.length * 60)
     setTimeout(() => setToast(null), duration)
   }
+
+  useEffect(() => {
+    if (!pendingTvNotif) return
+    window.history.replaceState(null, "", window.location.pathname)
+    setPendingTvNotif(null)
+    if (pendingTvNotif === "success") {
+      setActivePage("CONNECT_MT5")
+      showToast("Tradovate conectado exitosamente", "success")
+    } else {
+      showToast("Error al conectar con Tradovate — intenta de nuevo")
+    }
+  }, [pendingTvNotif]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const userId = session?.user?.id ?? ""
 
@@ -475,7 +493,7 @@ function App() {
         {activePage === "ADMIN" && profile.is_admin && <AdminPanel />}
 
         {/* ─── CONNECT MT5 ─── */}
-        {activePage === "CONNECT_MT5" && <ConnectMT5Panel accounts={accounts} userId={userId} />}
+        {activePage === "CONNECT_MT5" && <ConnectMT5Panel accounts={accounts} userId={userId} onImportTrades={importTrades} />}
 
         {/* ─── COPY TRADING ─── */}
         {activePage === "COPY_TRADING" && (
