@@ -991,32 +991,42 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
                       const isFutures = capitalType === "Empresa de Fondeo Futuros"
                       return (
                         <div style={{ marginTop: "24px", paddingTop: "20px", borderTop: "1px solid rgba(148,163,184,0.08)" }}>
-                          <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)", marginBottom: "8px" }}>
-                            {isFutures ? "Agregar historial desde archivo" : "Actualizar historial desde archivo"}
-                          </div>
 
-                          {stats?.tradeCount > 0 && (
-                            <div style={{
-                              display: "flex", alignItems: "center", gap: "6px",
-                              marginBottom: "12px", padding: "7px 12px",
-                              background: "rgba(16,185,129,0.08)", borderRadius: "8px",
-                              border: "1px solid rgba(16,185,129,0.18)",
-                            }}>
-                              <span style={{ color: "#10b981", fontWeight: "700", fontSize: "12px" }}>
-                                {stats.tradeCount} trades actuales
-                              </span>
-                              <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>
-                                · {isFutures ? "sube un archivo para acumular al historial" : "sube un archivo para reemplazarlos"}
-                              </span>
+                          {/* Header row */}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              <div style={{
+                                width: "32px", height: "32px", borderRadius: "9px", flexShrink: 0,
+                                background: "rgba(16,185,129,0.12)",
+                                display: "flex", alignItems: "center", justifyContent: "center", color: "#10b981",
+                              }}>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                  <polyline points="17 8 12 3 7 8"/>
+                                  <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                              </div>
+                              <div>
+                                <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)", lineHeight: 1.2 }}>
+                                  {isFutures ? "Agregar historial" : "Actualizar historial"}
+                                </div>
+                                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>
+                                  {isFutures ? "Acumula trades nuevos · duplicados omitidos" : "CSV, XLSX o XLS desde MT4/MT5/TradingView"}
+                                </div>
+                              </div>
                             </div>
-                          )}
-
-                          <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "14px", lineHeight: "1.5" }}>
-                            {isFutures
-                              ? "Futuros: cada importación agrega los trades nuevos sin eliminar los anteriores. Los duplicados se omiten automáticamente."
-                              : "Sube tu historial desde MT4, MT5, TradingView o cualquier exportación CSV/Excel."}
+                            {stats?.tradeCount > 0 && (
+                              <span style={{
+                                fontSize: "11px", fontWeight: "700", padding: "4px 10px", borderRadius: "20px",
+                                background: "rgba(16,185,129,0.1)", color: "#10b981",
+                                border: "1px solid rgba(16,185,129,0.2)", whiteSpace: "nowrap",
+                              }}>
+                                {stats.tradeCount} trades
+                              </span>
+                            )}
                           </div>
 
+                          {/* Dropzone horizontal */}
                           <div
                             onDragOver={(e) => { e.preventDefault(); setReimportDragging(true) }}
                             onDragLeave={() => setReimportDragging(false)}
@@ -1026,34 +1036,29 @@ export function AccountsPanel({ accounts, trades = [], onCreateAccount, onDelete
                             }}
                             onClick={() => fileInputRef.current?.click()}
                             style={{
-                              border: `2px dashed ${reimportDragging ? "#10b981" : "rgba(16,185,129,0.3)"}`,
-                              borderRadius: "14px",
-                              padding: "28px 20px",
-                              display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
+                              border: `1.5px dashed ${reimportDragging ? "#10b981" : "rgba(16,185,129,0.25)"}`,
+                              borderRadius: "12px",
+                              padding: "14px 18px",
+                              display: "flex", alignItems: "center", gap: "14px",
                               cursor: "pointer",
-                              background: reimportDragging ? "rgba(16,185,129,0.06)" : "transparent",
+                              background: reimportDragging ? "rgba(16,185,129,0.06)" : "rgba(16,185,129,0.02)",
                               transition: "all 0.15s",
                             }}
                           >
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-1)" }}>
+                                Arrastra o selecciona un archivo
+                              </div>
+                              <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px" }}>
+                                CSV · XLSX · XLS · máx. 10 MB
+                              </div>
+                            </div>
                             <div style={{
-                              width: "52px", height: "52px", borderRadius: "14px",
-                              background: "rgba(16,185,129,0.12)",
-                              display: "flex", alignItems: "center", justifyContent: "center", color: "#10b981",
+                              padding: "7px 14px", borderRadius: "8px", flexShrink: 0,
+                              background: "rgba(16,185,129,0.12)", color: "#10b981",
+                              fontSize: "12px", fontWeight: "700", pointerEvents: "none",
                             }}>
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="17 8 12 3 7 8"/>
-                                <line x1="12" y1="3" x2="12" y2="15"/>
-                              </svg>
-                            </div>
-                            <div style={{ color: "var(--text-1)", fontWeight: "600", fontSize: "14px" }}>
-                              Arrastra tu archivo aquí
-                            </div>
-                            <div style={{ color: "#10b981", fontSize: "13px", fontWeight: "500" }}>
-                              o haz clic para seleccionar
-                            </div>
-                            <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>
-                              CSV, XLSX o XLS · máx. 10 MB
+                              Seleccionar
                             </div>
                             <input
                               ref={fileInputRef}
