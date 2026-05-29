@@ -1,5 +1,152 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabase"
+
+const MONTHS_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
+const WEEKDAYS_SHORT = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"]
+
+const formatIso = (date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+const parseIso = (value) => { const [y, m, d] = value.split("-").map(Number); return new Date(y, m - 1, d) }
+const formatDateLabel = (value) => {
+  if (!value) return ""
+  return parseIso(value).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" })
+}
+
+function DateRangePicker({ fromDate, toDate, onFromChange, onToChange }) {
+  const [open, setOpen] = useState(false)
+  const [step, setStep] = useState(1)
+  const [month, setMonth] = useState(() => fromDate ? parseIso(fromDate) : new Date())
+  const [hoverDate, setHoverDate] = useState(null)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handle = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setHoverDate(null) } }
+    document.addEventListener("mousedown", handle)
+    return () => document.removeEventListener("mousedown", handle)
+  }, [open])
+
+  const openFor = (s) => {
+    setStep(s)
+    if (s === 1 && fromDate) setMonth(parseIso(fromDate))
+    else if (s === 2 && toDate) setMonth(parseIso(toDate))
+    setOpen(true)
+  }
+
+  const changeMonth = (offset) => {
+    const next = new Date(month)
+    next.setMonth(month.getMonth() + offset)
+    setMonth(next)
+  }
+
+  const handleDayClick = (iso) => {
+    if (step === 1) { onFromChange(iso); onToChange(""); setStep(2) }
+    else {
+      if (fromDate && iso < fromDate) { onFromChange(iso); onToChange(""); setStep(2) }
+      else { onToChange(iso); setOpen(false); setHoverDate(null) }
+    }
+  }
+
+  const monthStart = new Date(month.getFullYear(), month.getMonth(), 1)
+  const firstDayIndex = (monthStart.getDay() + 6) % 7
+  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
+
+  const renderDay = (day) => {
+    const date = new Date(month.getFullYear(), month.getMonth(), day)
+    const iso = formatIso(date)
+    const isFrom = iso === fromDate
+    const endIso = toDate || (step === 2 && hoverDate ? hoverDate : null)
+    const isTo = iso === endIso
+    const inRange = fromDate && endIso && iso > fromDate && iso < endIso
+    const isSelected = isFrom || isTo
+    return (
+      <button key={day} type="button"
+        onClick={() => handleDayClick(iso)}
+        onMouseEnter={() => step === 2 && setHoverDate(iso)}
+        onMouseLeave={() => step === 2 && setHoverDate(null)}
+        style={{
+          width: "100%", height: "36px",
+          border: isSelected ? "1.5px solid #10b981" : "1px solid transparent",
+          background: isSelected ? "rgba(16,185,129,0.22)" : inRange ? "rgba(16,185,129,0.09)" : "transparent",
+          borderRadius: "9px",
+          color: isSelected ? "#10b981" : "var(--text-1)",
+          cursor: "pointer", fontSize: "13px", fontWeight: isSelected ? 700 : 500,
+          transition: "background 0.15s", fontFamily: "Inter, Arial, sans-serif",
+        }}
+      >{day}</button>
+    )
+  }
+
+  const chipStyle = (active) => ({
+    display: "flex", alignItems: "center", gap: "8px",
+    background: active ? "rgba(16,185,129,0.08)" : "var(--inner-bg)",
+    border: active ? "1.5px solid rgba(16,185,129,0.5)" : "1px solid var(--border-input)",
+    borderRadius: "10px", padding: "8px 12px",
+    cursor: "pointer", color: "var(--text-1)",
+    transition: "border 0.15s, background 0.15s", whiteSpace: "nowrap",
+  })
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <button type="button" onClick={() => openFor(1)} style={chipStyle(open && step === 1)}>
+          <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>📅</span>
+          <span style={{ fontSize: "13px", fontWeight: fromDate ? 600 : 400, color: fromDate ? "var(--text-1)" : "var(--text-muted)" }}>
+            {fromDate ? formatDateLabel(fromDate) : "Desde"}
+          </span>
+        </button>
+        <span style={{ color: "var(--text-muted)", fontSize: "14px" }}>→</span>
+        <button type="button" onClick={() => fromDate && openFor(2)} style={{ ...chipStyle(open && step === 2), opacity: fromDate ? 1 : 0.5, cursor: fromDate ? "pointer" : "default" }}>
+          <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>📅</span>
+          <span style={{ fontSize: "13px", fontWeight: toDate ? 600 : 400, color: toDate ? "var(--text-1)" : "var(--text-muted)" }}>
+            {toDate ? formatDateLabel(toDate) : "Hasta"}
+          </span>
+        </button>
+        {(fromDate || toDate) && (
+          <button type="button" onClick={() => { onFromChange(""); onToChange("") }}
+            style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "15px", padding: "4px", lineHeight: 1 }}>
+            ✕
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 10px)", left: 0,
+          width: "310px", background: "var(--card-bg)",
+          border: "1px solid var(--border-card)", borderRadius: "20px",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.4)", padding: "20px", zIndex: 200,
+        }}>
+          <div style={{ fontSize: "10px", fontWeight: 700, color: "#10b981", letterSpacing: "0.12em", textTransform: "uppercase", textAlign: "center", marginBottom: "14px" }}>
+            {step === 1 ? "Seleccioná fecha de inicio" : "Seleccioná fecha de fin"}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+            <button type="button" onClick={() => changeMonth(-1)}
+              style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "20px", lineHeight: 1, padding: "0 6px" }}>‹</button>
+            <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-1)" }}>
+              {MONTHS_ES[month.getMonth()]} {month.getFullYear()}
+            </span>
+            <button type="button" onClick={() => changeMonth(1)}
+              style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "20px", lineHeight: 1, padding: "0 6px" }}>›</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px", marginBottom: "6px" }}>
+            {WEEKDAYS_SHORT.map((d) => (
+              <span key={d} style={{ textAlign: "center", fontSize: "10px", color: "var(--text-muted)", fontWeight: 600, padding: "4px 0" }}>{d}</span>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px" }}>
+            {Array.from({ length: firstDayIndex }).map((_, i) => <div key={`b${i}`} />)}
+            {Array.from({ length: daysInMonth }).map((_, i) => renderDay(i + 1))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const CATEGORIES = [
   { key: "Prop Firms",    color: "#f59e0b" },
@@ -202,59 +349,12 @@ export function AccountingPanel({ userId }) {
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            <div style={{ position: "relative" }}>
-              <span style={{
-                position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)",
-                fontSize: "10px", fontWeight: "700", color: "var(--text-muted)",
-                textTransform: "uppercase", letterSpacing: "0.08em", pointerEvents: "none",
-                display: filterFrom ? "none" : "block",
-              }}>Desde</span>
-              <input
-                type="date"
-                value={filterFrom}
-                onChange={(e) => setFilterFrom(e.target.value)}
-                style={{
-                  background: "var(--inner-bg)", border: "1px solid var(--border-input)",
-                  color: filterFrom ? "var(--text-1)" : "transparent",
-                  padding: "9px 12px", borderRadius: "10px", fontSize: "13px",
-                  outline: "none", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
-                  width: "140px",
-                }}
-              />
-            </div>
-            <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>—</span>
-            <div style={{ position: "relative" }}>
-              <span style={{
-                position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)",
-                fontSize: "10px", fontWeight: "700", color: "var(--text-muted)",
-                textTransform: "uppercase", letterSpacing: "0.08em", pointerEvents: "none",
-                display: filterTo ? "none" : "block",
-              }}>Hasta</span>
-              <input
-                type="date"
-                value={filterTo}
-                onChange={(e) => setFilterTo(e.target.value)}
-                style={{
-                  background: "var(--inner-bg)", border: "1px solid var(--border-input)",
-                  color: filterTo ? "var(--text-1)" : "transparent",
-                  padding: "9px 12px", borderRadius: "10px", fontSize: "13px",
-                  outline: "none", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
-                  width: "140px",
-                }}
-              />
-            </div>
-            {(filterFrom || filterTo) && (
-              <button
-                onClick={() => { setFilterFrom(""); setFilterTo("") }}
-                title="Limpiar fechas"
-                style={{
-                  background: "none", border: "none", color: "var(--text-muted)",
-                  cursor: "pointer", fontSize: "16px", lineHeight: 1, padding: "4px",
-                }}
-              >✕</button>
-            )}
-          </div>
+          <DateRangePicker
+            fromDate={filterFrom}
+            toDate={filterTo}
+            onFromChange={setFilterFrom}
+            onToChange={setFilterTo}
+          />
           <select
             value={filterCategory}
             onChange={(e) => { setFilterCategory(e.target.value); setFilterCompany("") }}
