@@ -236,17 +236,28 @@ export function AccountingPanel({ userId }) {
                   </div>
                   {/* Subcategorías de Prop Firms */}
                   {c.subcats?.length > 0 && (
-                    <div style={{ marginTop: "8px", paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "4px" }}>
-                      {c.subcats.map((s) => (
-                        <div key={s.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                            <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: c.color, opacity: 0.5 }} />
-                            <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{s.key}</span>
-                            <span style={{ fontSize: "10px", color: "var(--text-muted)", opacity: 0.6 }}>{s.count} entrada{s.count !== 1 ? "s" : ""}</span>
+                    <div style={{ marginTop: "10px", paddingLeft: "12px", display: "flex", flexDirection: "column", gap: "8px", borderLeft: `2px solid ${c.color}30` }}>
+                      {c.subcats.map((s) => {
+                        const subPct = c.total > 0 ? (s.total / c.total) * 100 : 0
+                        return (
+                          <div key={s.key}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: c.color, opacity: 0.6 }} />
+                                <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-2, #cbd5e1)" }}>{s.key}</span>
+                                <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>{s.count} entrada{s.count !== 1 ? "s" : ""}</span>
+                              </div>
+                              <div style={{ textAlign: "right" }}>
+                                <span style={{ fontSize: "12px", fontWeight: "700", color: c.color }}>-{fmt(s.total)}</span>
+                                <span style={{ fontSize: "10px", color: "var(--text-muted)", marginLeft: "5px" }}>{subPct.toFixed(1)}%</span>
+                              </div>
+                            </div>
+                            <div style={{ height: "3px", borderRadius: "2px", background: "rgba(148,163,184,0.08)", overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${subPct}%`, background: c.color, opacity: 0.5, borderRadius: "2px", transition: "width 0.4s" }} />
+                            </div>
                           </div>
-                          <span style={{ fontSize: "11px", fontWeight: "600", color: c.color, opacity: 0.8 }}>-{fmt(s.total)}</span>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -336,8 +347,8 @@ export function AccountingPanel({ userId }) {
                 <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                   {new Date(entry.entry_date + "T00:00:00").toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
                 </span>
-                <span style={{ fontSize: "14px", fontWeight: "700", color: "#f87171" }}>
-                  -{fmt(entry.amount)}
+                <span style={{ fontSize: "14px", fontWeight: "700", color: Number(entry.amount) === 0 ? "var(--text-muted)" : "#f87171" }}>
+                  {Number(entry.amount) === 0 ? fmt(entry.amount) : `-${fmt(entry.amount)}`}
                 </span>
                 <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
                   <button
