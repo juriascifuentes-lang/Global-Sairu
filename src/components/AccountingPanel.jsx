@@ -142,6 +142,24 @@ function DateRangePicker({ fromDate, toDate, onFromChange, onToChange }) {
             {Array.from({ length: firstDayIndex }).map((_, i) => <div key={`b${i}`} />)}
             {Array.from({ length: daysInMonth }).map((_, i) => renderDay(i + 1))}
           </div>
+          <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid rgba(148,163,184,0.08)", display: "flex", gap: "8px" }}>
+            <button type="button"
+              onClick={() => { const t = formatIso(new Date()); onFromChange(t); onToChange(t); setOpen(false); setHoverDate(null) }}
+              style={{
+                flex: 1, padding: "8px", borderRadius: "9px", border: "1px solid rgba(16,185,129,0.35)",
+                background: "rgba(16,185,129,0.08)", color: "#10b981",
+                fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
+              }}
+            >Hoy</button>
+            <button type="button"
+              onClick={() => { onFromChange(""); onToChange(""); setOpen(false); setHoverDate(null) }}
+              style={{
+                flex: 1, padding: "8px", borderRadius: "9px", border: "1px solid var(--border-input)",
+                background: "transparent", color: "var(--text-muted)",
+                fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
+              }}
+            >Limpiar</button>
+          </div>
         </div>
       )}
     </div>
