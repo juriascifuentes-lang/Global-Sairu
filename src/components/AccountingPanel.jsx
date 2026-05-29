@@ -295,7 +295,7 @@ export function AccountingPanel({ userId }) {
         ) : (
           <>
             {/* Tabla */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 36px", gap: "8px", padding: "0 12px 10px", borderBottom: "1px solid var(--border-nav)", marginBottom: "4px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 72px", gap: "8px", padding: "0 12px 10px", borderBottom: "1px solid var(--border-nav)", marginBottom: "4px" }}>
               {["Nombre", "Categoría", "Fecha", "Monto", ""].map((h) => (
                 <span key={h} style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>{h}</span>
               ))}
@@ -305,13 +305,12 @@ export function AccountingPanel({ userId }) {
               <div
                 key={entry.id}
                 style={{
-                  display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 36px",
+                  display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 72px",
                   gap: "8px", padding: "11px 12px", borderRadius: "10px", alignItems: "center",
-                  cursor: "pointer", transition: "background 0.12s",
+                  transition: "background 0.12s",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = "var(--nav-hover)" }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
-                onClick={() => openEdit(entry)}
               >
                 <div>
                   <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-1)" }}>{entry.name}</div>
@@ -340,19 +339,34 @@ export function AccountingPanel({ userId }) {
                 <span style={{ fontSize: "14px", fontWeight: "700", color: "#f87171" }}>
                   -{fmt(entry.amount)}
                 </span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(entry.id) }}
-                  style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px", borderRadius: "6px", display: "grid", placeItems: "center", transition: "color 0.12s" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171" }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                    <path d="M10 11v6"/><path d="M14 11v6"/>
-                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                  </svg>
-                </button>
+                <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
+                  <button
+                    onClick={() => openEdit(entry)}
+                    title="Editar"
+                    style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "5px", borderRadius: "6px", display: "grid", placeItems: "center", transition: "color 0.12s" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = "#6366f1" }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleDelete(entry.id)}
+                    title="Eliminar"
+                    style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "5px", borderRadius: "6px", display: "grid", placeItems: "center", transition: "color 0.12s" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171" }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                      <path d="M10 11v6"/><path d="M14 11v6"/>
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))}
 
