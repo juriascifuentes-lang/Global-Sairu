@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS accounting_entries (
   name         TEXT        NOT NULL,
   amount       NUMERIC     NOT NULL CHECK (amount >= 0),
   category     TEXT        NOT NULL DEFAULT 'Otros',
+  subcategory  TEXT,
   entry_date   DATE        NOT NULL,
   notes        TEXT,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -16,3 +17,6 @@ CREATE POLICY "user_owns_accounting_entries"
   ON accounting_entries
   FOR ALL
   USING (auth.uid() = user_id);
+
+-- Migración: agregar columna subcategory si la tabla ya existe
+ALTER TABLE accounting_entries ADD COLUMN IF NOT EXISTS subcategory TEXT;

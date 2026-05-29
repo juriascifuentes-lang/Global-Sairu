@@ -14,11 +14,14 @@ const catColor = (cat) => CATEGORIES.find((c) => c.key === cat)?.color || "#94a3
 const fmt = (n) =>
   `$${Math.abs(Number(n)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
+const PROP_FIRM_SUBCATEGORIES = ["Futuros", "Forex / CFDs"]
+
 const defaultForm = {
   id: null,
   name: "",
   amount: "",
   category: "Prop Firms",
+  subcategory: "Futuros",
   date: new Date().toISOString().slice(0, 10),
   notes: "",
 }
@@ -54,7 +57,7 @@ export function AccountingPanel({ userId }) {
 
   const openAdd = () => { setForm(defaultForm); setShowForm(true) }
   const openEdit = (e) => {
-    setForm({ id: e.id, name: e.name, amount: String(e.amount), category: e.category, date: e.entry_date, notes: e.notes || "" })
+    setForm({ id: e.id, name: e.name, amount: String(e.amount), category: e.category, subcategory: e.subcategory || "Futuros", date: e.entry_date, notes: e.notes || "" })
     setShowForm(true)
   }
 
@@ -66,6 +69,7 @@ export function AccountingPanel({ userId }) {
       name: form.name.trim(),
       amount: parseFloat(form.amount),
       category: form.category,
+      subcategory: form.category === "Prop Firms" ? form.subcategory : null,
       entry_date: form.date,
       notes: form.notes.trim() || null,
     }
@@ -100,11 +104,18 @@ export function AccountingPanel({ userId }) {
   const totalFiltered = filtered.reduce((s, e) => s + Number(e.amount), 0)
 
   const byCategory = CATEGORIES
-    .map((c) => ({
-      ...c,
-      total: entries.filter((e) => e.category === c.key).reduce((s, e) => s + Number(e.amount), 0),
-      count: entries.filter((e) => e.category === c.key).length,
-    }))
+    .map((c) => {
+      const catEntries = entries.filter((e) => e.category === c.key)
+      const total = catEntries.reduce((s, e) => s + Number(e.amount), 0)
+      const subcats = c.key === "Prop Firms"
+        ? PROP_FIRM_SUBCATEGORIES.map((sub) => ({
+            key: sub,
+            total: catEntries.filter((e) => e.subcategory === sub).reduce((s, e) => s + Number(e.amount), 0),
+            count: catEntries.filter((e) => e.subcategory === sub).length,
+          })).filter((s) => s.total > 0)
+        : []
+      return { ...c, total, count: catEntries.length, subcats }
+    })
     .filter((c) => c.total > 0)
 
   const months = [...new Set(entries.map((e) => e.entry_date.slice(0, 7)))].sort().reverse()
@@ -223,6 +234,21 @@ export function AccountingPanel({ userId }) {
                   <div style={{ height: "5px", borderRadius: "3px", background: "rgba(148,163,184,0.1)", overflow: "hidden" }}>
                     <div style={{ height: "100%", width: `${pct}%`, background: c.color, borderRadius: "3px", transition: "width 0.4s" }} />
                   </div>
+                  {/* Subcategorías de Prop Firms */}
+                  {c.subcats?.length > 0 && (
+                    <div style={{ marginTop: "8px", paddingLeft: "16px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                      {c.subcats.map((s) => (
+                        <div key={s.key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: c.color, opacity: 0.5 }} />
+                            <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{s.key}</span>
+                            <span style={{ fontSize: "10px", color: "var(--text-muted)", opacity: 0.6 }}>{s.count} entrada{s.count !== 1 ? "s" : ""}</span>
+                          </div>
+                          <span style={{ fontSize: "11px", fontWeight: "600", color: c.color, opacity: 0.8 }}>-{fmt(s.total)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -293,14 +319,21 @@ export function AccountingPanel({ userId }) {
                     <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>{entry.notes}</div>
                   )}
                 </div>
-                <span style={{
-                  fontSize: "11px", fontWeight: "700", padding: "3px 9px", borderRadius: "6px",
-                  background: `${catColor(entry.category)}1a`,
-                  color: catColor(entry.category),
-                  width: "fit-content",
-                }}>
-                  {entry.category}
-                </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <span style={{
+                    fontSize: "11px", fontWeight: "700", padding: "3px 9px", borderRadius: "6px",
+                    background: `${catColor(entry.category)}1a`,
+                    color: catColor(entry.category),
+                    width: "fit-content",
+                  }}>
+                    {entry.category}
+                  </span>
+                  {entry.subcategory && (
+                    <span style={{ fontSize: "10px", color: "var(--text-muted)", paddingLeft: "2px" }}>
+                      {entry.subcategory}
+                    </span>
+                  )}
+                </div>
                 <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
                   {new Date(entry.entry_date + "T00:00:00").toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
                 </span>
@@ -405,7 +438,7 @@ export function AccountingPanel({ userId }) {
                 </label>
                 <select
                   value={form.category}
-                  onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
+                  onChange={(e) => setForm((p) => ({ ...p, category: e.target.value, subcategory: "Futuros" }))}
                   style={{ ...inputStyle, cursor: "pointer" }}
                 >
                   {CATEGORIES.map((c) => (
@@ -413,6 +446,35 @@ export function AccountingPanel({ userId }) {
                   ))}
                 </select>
               </div>
+
+              {form.category === "Prop Firms" && (
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                    Tipo de cuenta <span style={{ color: "#f87171" }}>*</span>
+                  </label>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    {PROP_FIRM_SUBCATEGORIES.map((sub) => (
+                      <button
+                        key={sub}
+                        type="button"
+                        onClick={() => setForm((p) => ({ ...p, subcategory: sub }))}
+                        style={{
+                          flex: 1, padding: "10px 14px", borderRadius: "10px", border: "none",
+                          background: form.subcategory === sub ? "rgba(245,158,11,0.15)" : "var(--inner-bg)",
+                          color: form.subcategory === sub ? "#f59e0b" : "var(--text-muted)",
+                          fontWeight: form.subcategory === sub ? "700" : "500",
+                          fontSize: "13px", cursor: "pointer",
+                          outline: form.subcategory === sub ? "1.5px solid rgba(245,158,11,0.4)" : "1px solid var(--border-input)",
+                          transition: "all 0.12s",
+                          fontFamily: "Inter, Arial, sans-serif",
+                        }}
+                      >
+                        {sub}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label style={{ display: "block", fontSize: "11px", color: "var(--text-muted)", marginBottom: "6px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em" }}>
