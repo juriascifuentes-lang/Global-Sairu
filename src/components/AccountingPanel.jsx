@@ -14,6 +14,8 @@ const catColor = (cat) => CATEGORIES.find((c) => c.key === cat)?.color || "#94a3
 const fmt = (n) =>
   `$${Math.abs(Number(n)).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
+const isRetiro = (e) => e.entry_type === "retiro"
+
 const PROP_FIRM_SUBCATEGORIES = ["Futuros", "Forex / CFDs"]
 
 const defaultForm = {
@@ -24,6 +26,7 @@ const defaultForm = {
   subcategory: "Futuros",
   date: new Date().toISOString().slice(0, 10),
   notes: "",
+  entry_type: "gasto",
 }
 
 const card = {
@@ -55,9 +58,14 @@ export function AccountingPanel({ userId }) {
     setLoading(false)
   }
 
-  const openAdd = () => { setForm(defaultForm); setShowForm(true) }
+  const openAdd = (type = "gasto") => { setForm({ ...defaultForm, entry_type: type }); setShowForm(true) }
   const openEdit = (e) => {
-    setForm({ id: e.id, name: e.name, amount: String(e.amount), category: e.category, subcategory: e.subcategory || "Futuros", date: e.entry_date, notes: e.notes || "" })
+    setForm({
+      id: e.id, name: e.name, amount: String(e.amount),
+      category: e.category, subcategory: e.subcategory || "Futuros",
+      date: e.entry_date, notes: e.notes || "",
+      entry_type: e.entry_type || "gasto",
+    })
     setShowForm(true)
   }
 
@@ -72,6 +80,7 @@ export function AccountingPanel({ userId }) {
       subcategory: form.category === "Prop Firms" ? form.subcategory : null,
       entry_date: form.date,
       notes: form.notes.trim() || null,
+      entry_type: form.entry_type,
     }
     if (form.id) {
       await supabase.from("accounting_entries").update(payload).eq("id", form.id)
@@ -83,10 +92,11 @@ export function AccountingPanel({ userId }) {
     setSaving(false)
   }
 
-  async function handleDelete(id) {
-    if (!window.confirm("¿Eliminar este gasto?")) return
-    await supabase.from("accounting_entries").delete().eq("id", id)
-    setEntries((prev) => prev.filter((e) => e.id !== id))
+  async function handleDelete(entry) {
+    const label = isRetiro(entry) ? "retiro" : "gasto"
+    if (!window.confirm(`¿Eliminar este ${label}?`)) return
+    await supabase.from("accounting_entries").delete().eq("id", entry.id)
+    setEntries((prev) => prev.filter((e) => e.id !== entry.id))
   }
 
   const filtered = entries.filter((e) => {
@@ -95,17 +105,25 @@ export function AccountingPanel({ userId }) {
     return true
   })
 
-  const totalAll = entries.reduce((s, e) => s + Number(e.amount), 0)
+  const gastos   = entries.filter((e) => !isRetiro(e))
+  const retiros  = entries.filter((e) => isRetiro(e))
+  const totalGastos  = gastos.reduce((s, e) => s + Number(e.amount), 0)
+  const totalRetiros = retiros.reduce((s, e) => s + Number(e.amount), 0)
+  const neto = totalRetiros - totalGastos
+
   const now = new Date()
   const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-  const totalThisMonth = entries
+  const gastosThisMonth = gastos
     .filter((e) => e.entry_date.startsWith(thisMonth))
     .reduce((s, e) => s + Number(e.amount), 0)
-  const totalFiltered = filtered.reduce((s, e) => s + Number(e.amount), 0)
+
+  const filteredGastos  = filtered.filter((e) => !isRetiro(e)).reduce((s, e) => s + Number(e.amount), 0)
+  const filteredRetiros = filtered.filter((e) => isRetiro(e)).reduce((s, e) => s + Number(e.amount), 0)
+  const filteredNeto    = filteredRetiros - filteredGastos
 
   const byCategory = CATEGORIES
     .map((c) => {
-      const catEntries = entries.filter((e) => e.category === c.key)
+      const catEntries = gastos.filter((e) => e.category === c.key)
       const total = catEntries.reduce((s, e) => s + Number(e.amount), 0)
       const subcats = c.key === "Prop Firms"
         ? PROP_FIRM_SUBCATEGORIES.map((sub) => ({
@@ -138,6 +156,9 @@ export function AccountingPanel({ userId }) {
     boxSizing: "border-box",
   }
 
+  const netoColor = neto > 0 ? "#10b981" : neto < 0 ? "#f87171" : "var(--text-muted)"
+  const isEditingRetiro = form.entry_type === "retiro"
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 
@@ -148,7 +169,7 @@ export function AccountingPanel({ userId }) {
             Contabilidad
           </h1>
           <p style={{ margin: "6px 0 0", fontSize: "14px", color: "var(--text-muted)" }}>
-            Registro de gastos operativos de trading
+            Gastos y retiros operativos de trading
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
@@ -184,14 +205,31 @@ export function AccountingPanel({ userId }) {
               <option key={c.key} value={c.key}>{c.key}</option>
             ))}
           </select>
+          {/* Agregar retiro */}
           <button
-            onClick={openAdd}
+            onClick={() => openAdd("retiro")}
             style={{
               padding: "9px 18px", borderRadius: "10px", border: "none",
               background: "linear-gradient(135deg,#10b981,#059669)",
               color: "#fff", fontWeight: "700", fontSize: "13px",
               cursor: "pointer", display: "flex", alignItems: "center", gap: "7px",
               boxShadow: "0 4px 12px rgba(16,185,129,0.25)", whiteSpace: "nowrap",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Agregar retiro
+          </button>
+          {/* Agregar gasto */}
+          <button
+            onClick={() => openAdd("gasto")}
+            style={{
+              padding: "9px 18px", borderRadius: "10px", border: "none",
+              background: "linear-gradient(135deg,#f87171,#ef4444)",
+              color: "#fff", fontWeight: "700", fontSize: "13px",
+              cursor: "pointer", display: "flex", alignItems: "center", gap: "7px",
+              boxShadow: "0 4px 12px rgba(248,113,113,0.25)", whiteSpace: "nowrap",
             }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -204,46 +242,60 @@ export function AccountingPanel({ userId }) {
 
       {/* Summary cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "16px" }}>
+        {/* Total gastos */}
         <div style={{ ...card, borderTop: "3px solid #f87171" }}>
           <div style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", marginBottom: "8px" }}>
-            Total acumulado
+            Total gastos
           </div>
           <div style={{ fontSize: "26px", fontWeight: "800", color: "#f87171", letterSpacing: "-0.02em" }}>
-            -{fmt(totalAll)}
+            -{fmt(totalGastos)}
           </div>
           <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
-            {entries.length} entradas
+            {gastos.length} entrada{gastos.length !== 1 ? "s" : ""}
           </div>
         </div>
 
+        {/* Total retiros */}
+        <div style={{ ...card, borderTop: "3px solid #10b981" }}>
+          <div style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", marginBottom: "8px" }}>
+            Total retiros
+          </div>
+          <div style={{ fontSize: "26px", fontWeight: "800", color: "#10b981", letterSpacing: "-0.02em" }}>
+            {totalRetiros > 0 ? `+${fmt(totalRetiros)}` : fmt(0)}
+          </div>
+          <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
+            {retiros.length} entrada{retiros.length !== 1 ? "s" : ""}
+          </div>
+        </div>
+
+        {/* Neto */}
+        <div style={{ ...card, borderTop: `3px solid ${netoColor}` }}>
+          <div style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", marginBottom: "8px" }}>
+            Neto
+          </div>
+          <div style={{ fontSize: "26px", fontWeight: "800", color: netoColor, letterSpacing: "-0.02em" }}>
+            {neto > 0 ? `+${fmt(neto)}` : neto < 0 ? `-${fmt(neto)}` : fmt(0)}
+          </div>
+          <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
+            retiros − gastos
+          </div>
+        </div>
+
+        {/* Este mes (gastos) */}
         <div style={{ ...card, borderTop: "3px solid #f59e0b" }}>
           <div style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", marginBottom: "8px" }}>
-            Este mes
+            Gastos este mes
           </div>
           <div style={{ fontSize: "26px", fontWeight: "800", color: "#f59e0b", letterSpacing: "-0.02em" }}>
-            {totalThisMonth > 0 ? `-${fmt(totalThisMonth)}` : "$0.00"}
+            {gastosThisMonth > 0 ? `-${fmt(gastosThisMonth)}` : fmt(0)}
           </div>
           <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
             {new Date().toLocaleString("es-MX", { month: "long", year: "numeric" })}
           </div>
         </div>
-
-        {byCategory.slice(0, 2).map((c) => (
-          <div key={c.key} style={{ ...card, borderTop: `3px solid ${c.color}` }}>
-            <div style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)", marginBottom: "8px" }}>
-              {c.key}
-            </div>
-            <div style={{ fontSize: "26px", fontWeight: "800", color: c.color, letterSpacing: "-0.02em" }}>
-              -{fmt(c.total)}
-            </div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "4px" }}>
-              {c.count} entrada{c.count !== 1 ? "s" : ""}
-            </div>
-          </div>
-        ))}
       </div>
 
-      {/* Category breakdown */}
+      {/* Category breakdown — solo gastos */}
       {byCategory.length > 0 && (
         <div style={card}>
           <h2 style={{ margin: "0 0 18px", fontSize: "14px", fontWeight: "700", color: "var(--text-1)" }}>
@@ -251,7 +303,7 @@ export function AccountingPanel({ userId }) {
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {byCategory.map((c) => {
-              const pct = totalAll > 0 ? (c.total / totalAll) * 100 : 0
+              const pct = totalGastos > 0 ? (c.total / totalGastos) * 100 : 0
               return (
                 <div key={c.key}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
@@ -268,7 +320,6 @@ export function AccountingPanel({ userId }) {
                   <div style={{ height: "5px", borderRadius: "3px", background: "rgba(148,163,184,0.1)", overflow: "hidden" }}>
                     <div style={{ height: "100%", width: `${pct}%`, background: c.color, borderRadius: "3px", transition: "width 0.4s" }} />
                   </div>
-                  {/* Subcategorías de Prop Firms */}
                   {c.subcats?.length > 0 && (
                     <div style={{ marginTop: "10px", paddingLeft: "12px", display: "flex", flexDirection: "column", gap: "8px", borderLeft: `2px solid ${c.color}30` }}>
                       {c.subcats.map((s) => {
@@ -310,90 +361,111 @@ export function AccountingPanel({ userId }) {
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-muted)", fontSize: "14px", lineHeight: "1.6" }}>
             {entries.length === 0
-              ? <>Sin gastos registrados.<br />Haz clic en <strong style={{ color: "var(--text-1)" }}>Agregar gasto</strong> para comenzar.</>
+              ? <>Sin entradas registradas.<br />Usa <strong style={{ color: "var(--text-1)" }}>Agregar gasto</strong> o <strong style={{ color: "var(--text-1)" }}>Agregar retiro</strong> para comenzar.</>
               : "No hay entradas con los filtros seleccionados."}
           </div>
         ) : (
           <>
-            {/* Tabla */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 72px", gap: "8px", padding: "0 12px 10px", borderBottom: "1px solid var(--border-nav)", marginBottom: "4px" }}>
               {["Nombre", "Categoría", "Fecha", "Monto", ""].map((h) => (
                 <span key={h} style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>{h}</span>
               ))}
             </div>
 
-            {filtered.map((entry) => (
-              <div
-                key={entry.id}
-                style={{
-                  display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 72px",
-                  gap: "8px", padding: "11px 12px", borderRadius: "10px", alignItems: "center",
-                  transition: "background 0.12s",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--nav-hover)" }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
-              >
-                <div>
-                  <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-1)" }}>{entry.name}</div>
-                  {entry.notes && (
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>{entry.notes}</div>
-                  )}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <span style={{
-                    fontSize: "11px", fontWeight: "700", padding: "3px 9px", borderRadius: "6px",
-                    background: `${catColor(entry.category)}1a`,
-                    color: catColor(entry.category),
-                    width: "fit-content",
-                  }}>
-                    {entry.category}
-                  </span>
-                  {entry.subcategory && (
-                    <span style={{ fontSize: "10px", color: "var(--text-muted)", paddingLeft: "2px" }}>
-                      {entry.subcategory}
+            {filtered.map((entry) => {
+              const retiro = isRetiro(entry)
+              const amount = Number(entry.amount)
+              const amountColor = amount === 0 ? "var(--text-muted)" : retiro ? "#10b981" : "#f87171"
+              const amountLabel = amount === 0 ? fmt(amount) : retiro ? `+${fmt(amount)}` : `-${fmt(amount)}`
+              return (
+                <div
+                  key={entry.id}
+                  style={{
+                    display: "grid", gridTemplateColumns: "1fr 130px 100px 120px 72px",
+                    gap: "8px", padding: "11px 12px", borderRadius: "10px", alignItems: "center",
+                    transition: "background 0.12s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--nav-hover)" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+                >
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-1)" }}>{entry.name}</div>
+                      {retiro && (
+                        <span style={{ fontSize: "9px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px", background: "rgba(16,185,129,0.12)", color: "#10b981", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                          retiro
+                        </span>
+                      )}
+                    </div>
+                    {entry.notes && (
+                      <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>{entry.notes}</div>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <span style={{
+                      fontSize: "11px", fontWeight: "700", padding: "3px 9px", borderRadius: "6px",
+                      background: `${catColor(entry.category)}1a`, color: catColor(entry.category), width: "fit-content",
+                    }}>
+                      {entry.category}
                     </span>
-                  )}
+                    {entry.subcategory && (
+                      <span style={{ fontSize: "10px", color: "var(--text-muted)", paddingLeft: "2px" }}>
+                        {entry.subcategory}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                    {new Date(entry.entry_date + "T00:00:00").toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
+                  </span>
+                  <span style={{ fontSize: "14px", fontWeight: "700", color: amountColor }}>
+                    {amountLabel}
+                  </span>
+                  <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
+                    <button
+                      onClick={() => openEdit(entry)}
+                      title="Editar"
+                      style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "5px", borderRadius: "6px", display: "grid", placeItems: "center", transition: "color 0.12s" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "#6366f1" }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDelete(entry)}
+                      title="Eliminar"
+                      style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "5px", borderRadius: "6px", display: "grid", placeItems: "center", transition: "color 0.12s" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171" }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                        <path d="M10 11v6"/><path d="M14 11v6"/>
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-                  {new Date(entry.entry_date + "T00:00:00").toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
-                </span>
-                <span style={{ fontSize: "14px", fontWeight: "700", color: Number(entry.amount) === 0 ? "var(--text-muted)" : "#f87171" }}>
-                  {Number(entry.amount) === 0 ? fmt(entry.amount) : `-${fmt(entry.amount)}`}
-                </span>
-                <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
-                  <button
-                    onClick={() => openEdit(entry)}
-                    title="Editar"
-                    style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "5px", borderRadius: "6px", display: "grid", placeItems: "center", transition: "color 0.12s" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = "#6366f1" }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => handleDelete(entry.id)}
-                    title="Eliminar"
-                    style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "5px", borderRadius: "6px", display: "grid", placeItems: "center", transition: "color 0.12s" }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171" }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                      <path d="M10 11v6"/><path d="M14 11v6"/>
-                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
 
-            <div style={{ display: "flex", justifyContent: "flex-end", padding: "12px 12px 0", borderTop: "1px solid var(--border-nav)", marginTop: "6px" }}>
-              <span style={{ fontSize: "14px", fontWeight: "700", color: "#f87171" }}>
-                Total: -{fmt(totalFiltered)}
+            {/* Footer totales */}
+            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "20px", padding: "12px 12px 0", borderTop: "1px solid var(--border-nav)", marginTop: "6px", flexWrap: "wrap" }}>
+              {filteredGastos > 0 && (
+                <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+                  Gastos: <strong style={{ color: "#f87171" }}>-{fmt(filteredGastos)}</strong>
+                </span>
+              )}
+              {filteredRetiros > 0 && (
+                <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
+                  Retiros: <strong style={{ color: "#10b981" }}>+{fmt(filteredRetiros)}</strong>
+                </span>
+              )}
+              <span style={{ fontSize: "14px", fontWeight: "700", color: filteredNeto >= 0 ? "#10b981" : "#f87171" }}>
+                Neto: {filteredNeto >= 0 ? "+" : "-"}{fmt(filteredNeto)}
               </span>
             </div>
           </>
@@ -410,10 +482,12 @@ export function AccountingPanel({ userId }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
               <div>
                 <div style={{ fontWeight: "700", fontSize: "16px", color: "var(--text-1)" }}>
-                  {form.id ? "Editar gasto" : "Agregar gasto"}
+                  {form.id
+                    ? (isEditingRetiro ? "Editar retiro" : "Editar gasto")
+                    : (isEditingRetiro ? "Agregar retiro" : "Agregar gasto")}
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>
-                  Registro de gasto operativo
+                  {isEditingRetiro ? "Ingreso recibido de prop firm u otro" : "Registro de gasto operativo"}
                 </div>
               </div>
               <button
@@ -433,7 +507,7 @@ export function AccountingPanel({ userId }) {
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                  placeholder="Ej: FTMO Challenge 10K"
+                  placeholder={isEditingRetiro ? "Ej: FTMO Payout Mayo" : "Ej: FTMO Challenge 10K"}
                   style={inputStyle}
                   autoFocus
                 />
@@ -542,8 +616,10 @@ export function AccountingPanel({ userId }) {
                   style={{
                     flex: 1, padding: "11px", borderRadius: "11px", border: "none",
                     background: saving || !form.name.trim() || !form.amount || !form.date
-                      ? "rgba(16,185,129,0.4)"
-                      : "linear-gradient(135deg,#10b981,#059669)",
+                      ? (isEditingRetiro ? "rgba(16,185,129,0.4)" : "rgba(248,113,113,0.4)")
+                      : isEditingRetiro
+                        ? "linear-gradient(135deg,#10b981,#059669)"
+                        : "linear-gradient(135deg,#f87171,#ef4444)",
                     color: "#fff", fontWeight: "700", fontSize: "13px",
                     cursor: saving || !form.name.trim() || !form.amount || !form.date ? "not-allowed" : "pointer",
                     fontFamily: "Inter, Arial, sans-serif",
