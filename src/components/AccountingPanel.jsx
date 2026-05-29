@@ -142,7 +142,7 @@ export function AccountingPanel({ userId }) {
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h1 style={{ margin: 0, fontSize: "28px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.02em" }}>
             Contabilidad
@@ -151,21 +151,55 @@ export function AccountingPanel({ userId }) {
             Registro de gastos operativos de trading
           </p>
         </div>
-        <button
-          onClick={openAdd}
-          style={{
-            padding: "11px 20px", borderRadius: "12px", border: "none",
-            background: "linear-gradient(135deg,#10b981,#059669)",
-            color: "#fff", fontWeight: "700", fontSize: "14px",
-            cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
-            boxShadow: "0 4px 12px rgba(16,185,129,0.25)",
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Agregar gasto
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+          <select
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(e.target.value)}
+            style={{
+              background: "var(--inner-bg)", border: "1px solid var(--border-input)",
+              color: filterMonth ? "var(--text-1)" : "var(--text-muted)",
+              padding: "9px 14px", borderRadius: "10px", fontSize: "13px",
+              outline: "none", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
+              minWidth: "140px",
+            }}
+          >
+            <option value="">Todos los meses</option>
+            {months.map((m) => (
+              <option key={m} value={m}>{monthLabel(m)}</option>
+            ))}
+          </select>
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            style={{
+              background: "var(--inner-bg)", border: "1px solid var(--border-input)",
+              color: filterCategory ? "var(--text-1)" : "var(--text-muted)",
+              padding: "9px 14px", borderRadius: "10px", fontSize: "13px",
+              outline: "none", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
+              minWidth: "160px",
+            }}
+          >
+            <option value="">Todas las categorías</option>
+            {CATEGORIES.map((c) => (
+              <option key={c.key} value={c.key}>{c.key}</option>
+            ))}
+          </select>
+          <button
+            onClick={openAdd}
+            style={{
+              padding: "9px 18px", borderRadius: "10px", border: "none",
+              background: "linear-gradient(135deg,#10b981,#059669)",
+              color: "#fff", fontWeight: "700", fontSize: "13px",
+              cursor: "pointer", display: "flex", alignItems: "center", gap: "7px",
+              boxShadow: "0 4px 12px rgba(16,185,129,0.25)", whiteSpace: "nowrap",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Agregar gasto
+          </button>
+        </div>
       </div>
 
       {/* Summary cards */}
@@ -267,32 +301,8 @@ export function AccountingPanel({ userId }) {
         </div>
       )}
 
-      {/* Filters + List */}
+      {/* List */}
       <div style={card}>
-        {/* Filtros */}
-        <div style={{ display: "flex", gap: "10px", marginBottom: "20px", flexWrap: "wrap" }}>
-          <select
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(e.target.value)}
-            style={{ ...inputStyle, width: "auto", flex: "1 1 140px", cursor: "pointer" }}
-          >
-            <option value="">Todos los meses</option>
-            {months.map((m) => (
-              <option key={m} value={m}>{monthLabel(m)}</option>
-            ))}
-          </select>
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            style={{ ...inputStyle, width: "auto", flex: "1 1 140px", cursor: "pointer" }}
-          >
-            <option value="">Todas las categorías</option>
-            {CATEGORIES.map((c) => (
-              <option key={c.key} value={c.key}>{c.key}</option>
-            ))}
-          </select>
-        </div>
-
         {loading ? (
           <div style={{ textAlign: "center", padding: "48px", color: "var(--text-muted)", fontSize: "14px" }}>
             Cargando...
