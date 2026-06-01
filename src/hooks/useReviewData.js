@@ -9,6 +9,7 @@ const toTrade = (r) => ({
   images: r.images || [], entryNote: r.entry_note || "", entryImages: r.entry_images || [],
   stopLoss: r.stop_loss ?? null, takeProfit: r.take_profit ?? null,
   maxRR: r.max_rr ?? null, maxFavorableRR: r.max_favorable_rr ?? null,
+  maxAdverseExcursion: r.max_adverse_excursion ?? null,
 })
 const toAccount = (r) => ({
   id: Number(r.id), name: r.name, capitalType: r.capital_type, size: r.size,
@@ -26,6 +27,7 @@ const fromTrade = (t, uid) => ({
   take_profit: t.takeProfit !== "" && t.takeProfit != null ? Number(t.takeProfit) : null,
   max_rr: t.maxRR !== "" && t.maxRR != null ? Number(t.maxRR) : null,
   max_favorable_rr: t.maxFavorableRR !== "" && t.maxFavorableRR != null ? Number(t.maxFavorableRR) : null,
+  max_adverse_excursion: t.maxAdverseExcursion !== "" && t.maxAdverseExcursion != null ? Number(t.maxAdverseExcursion) : null,
 })
 const fromAccount = (a, uid) => ({
   id: a.id, user_id: uid, name: a.name, capital_type: a.capitalType, size: a.size,

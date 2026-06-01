@@ -61,7 +61,7 @@ const defaultForm = {
   openTime: "", strategy: "", account: "",
   setupQuality: "", psychology: "",
   images: [], entryNote: "", entryImages: [],
-  stopLoss: "", takeProfit: "", maxRR: "", maxFavorableRR: "",
+  stopLoss: "", takeProfit: "", maxRR: "", maxFavorableRR: "", maxAdverseExcursion: "",
 }
 
 const parseAccountSize = (size) => {

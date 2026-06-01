@@ -289,6 +289,35 @@ export function TradeForm({ form, setForm, onAddTrade, isEditing, accounts, stra
                 </div>
               </div>
 
+              {/* Pérdida máxima antes de ganar — solo trades ganadores */}
+              <div style={{ gridColumn: "1 / -1" }}>
+                <div style={{ fontSize: "10px", color: isWin ? "#f87171" : "rgba(248,113,113,0.3)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: "7px" }}>
+                  Pérdida máxima antes de ganar ($)
+                </div>
+                <input
+                  placeholder="Ej: -45.00"
+                  value={form.maxAdverseExcursion || ""}
+                  onChange={(e) => setForm({ ...form, maxAdverseExcursion: e.target.value })}
+                  disabled={!isWin}
+                  style={{
+                    ...inputStyle,
+                    border: `1px solid ${isWin ? "rgba(248,113,113,0.4)" : "rgba(248,113,113,0.1)"}`,
+                    opacity: isWin ? 1 : 0.35,
+                    cursor: isWin ? "text" : "not-allowed",
+                  }}
+                  type="number"
+                  step="0.01"
+                />
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "6px", lineHeight: "1.5" }}>
+                  ¿Cuánto llegaste a estar en rojo antes de que el trade se revirtiera a ganancia?
+                  {isWin && form.maxAdverseExcursion && Number(form.maxAdverseExcursion) !== 0 && (
+                    <span style={{ display: "block", marginTop: "3px", color: "#f87171", fontWeight: "600" }}>
+                      Mínimo: ${Number(form.maxAdverseExcursion).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
             </div>
           )
         })()}
