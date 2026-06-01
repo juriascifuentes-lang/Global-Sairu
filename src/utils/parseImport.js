@@ -17,11 +17,12 @@ export const parseNumber = (value) => {
     normalized = str.replace(/\./g, "").replace(",", ".")
   } else if (lastDot > lastComma) {
     const decimals = str.slice(lastDot + 1).replace(/\D/g, "")
-    if (decimals.length <= 2) {
-      // Decimal dot: "-27.32" or "451.92"
+    if (lastComma === -1 || decimals.length <= 2) {
+      // No comma (dot must be decimal) or standard 1-2 decimal places
       normalized = str.replace(/,/g, "")
     } else {
-      // Thousands dot: "25.000" -> remove dots
+      // Thousands dot with comma present: e.g. "1.234,56" → but that case
+      // is caught by lastComma > lastDot above; this branch is rarely reached
       normalized = str.replace(/\./g, "").replace(",", ".")
     }
   } else {
