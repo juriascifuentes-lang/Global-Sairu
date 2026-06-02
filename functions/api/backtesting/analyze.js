@@ -51,18 +51,20 @@ export async function onRequestPost(context) {
             },
             {
               type: "text",
-              text: `This is a trading backtesting calendar. Extract the daily P&L (profit and loss) for each trading day shown.
+              text: `This is a FXReplay trading backtesting calendar. Extract the daily P&L for each day that has trading activity.
 
 Return ONLY a valid JSON array. No explanation, no markdown, just the raw array:
 [{"date": "YYYY-MM-DD", "pnl": number}, ...]
 
-Rules:
-- Include every day that has a numeric value (positive or negative)
-- pnl must be a plain number without currency symbols (e.g. 250.50 or -180.00)
-- If values appear as percentages (e.g. +1.5%), return them as decimals (e.g. 1.5)
-- Skip empty cells or days with no trading activity
-- Infer the year and month from the calendar header; if not visible use the most recent logical date
-- Output dates in YYYY-MM-DD format`,
+IMPORTANT parsing rules:
+- Values use European decimal format with comma: "-148,00 US$" means -148.00, "808,00 US$" means 808.00
+- Strip currency symbols (US$, $, €) and convert comma decimal to dot decimal
+- pnl must be a plain JavaScript number (e.g. -148.00 or 808.00)
+- Red/dark cells = negative P&L, Green cells = positive P&L
+- Skip days with no number shown (empty cells, weekends without trades)
+- The month and year are in the calendar header (e.g. "May 2025" → use 2025-05)
+- Each cell shows the day number in the top-right corner — use that for the date
+- Output dates as YYYY-MM-DD`,
             },
           ],
         },

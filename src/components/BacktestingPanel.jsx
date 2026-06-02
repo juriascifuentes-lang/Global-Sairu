@@ -224,6 +224,7 @@ export function BacktestingPanel() {
           body: JSON.stringify({ image: base64, mediaType }),
         })
         const data = await res.json()
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
         const extracted = Array.isArray(data.days) ? data.days : []
         allDays.push(...extracted)
         setImgList(prev => {
@@ -231,10 +232,11 @@ export function BacktestingPanel() {
           u[baseIdx + idx] = { ...u[baseIdx + idx], status: "ok", count: extracted.length }
           return u
         })
-      } catch {
+      } catch (err) {
+        const isKeyMissing = String(err?.message).includes("ANTHROPIC_API_KEY")
         setImgList(prev => {
           const u = [...prev]
-          u[baseIdx + idx] = { ...u[baseIdx + idx], status: "error" }
+          u[baseIdx + idx] = { ...u[baseIdx + idx], status: "error", errorMsg: isKeyMissing ? "API key no configurada en Cloudflare" : (err?.message || "Error") }
           return u
         })
       }
@@ -379,8 +381,8 @@ export function BacktestingPanel() {
                 {imgList.map((img, i) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "5px 8px", background: "var(--input-bg)", borderRadius: "6px" }}>
                     <span style={{ color: "var(--text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "180px" }}>{img.name}</span>
-                    <span style={{ fontWeight: 700, flexShrink: 0, color: img.status === "ok" ? "#10b981" : img.status === "error" ? "#ef4444" : "#f59e0b" }}>
-                      {img.status === "ok" ? `✓ ${img.count} días` : img.status === "error" ? "✗ Error" : "..."}
+                    <span style={{ fontWeight: 700, flexShrink: 0, color: img.status === "ok" ? "#10b981" : img.status === "error" ? "#ef4444" : "#f59e0b", maxWidth: "160px", textAlign: "right" }}>
+                      {img.status === "ok" ? `✓ ${img.count} días` : img.status === "error" ? `✗ ${img.errorMsg || "Error"}` : "..."}
                     </span>
                   </div>
                 ))}
