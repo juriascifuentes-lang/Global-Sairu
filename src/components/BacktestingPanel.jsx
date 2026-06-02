@@ -180,7 +180,7 @@ export function BacktestingPanel() {
   const [firmKey, setFirmKey]         = useState(() => localStorage.getItem("bt_firmKey") || "FTMO")
   const [accountIdx, setAccountIdx]   = useState(() => Number(localStorage.getItem("bt_accountIdx") ?? 2))
   const [personalRule, setPersonalRule] = useState(() => localStorage.getItem("bt_personalRule") !== "false")
-  const [pnlUnit, setPnlUnit]         = useState(() => localStorage.getItem("bt_pnlUnit") || "usd")
+  const pnlUnit = "usd"
   const [riskMult, setRiskMult]       = useState(() => Number(localStorage.getItem("bt_riskMult") ?? 1.0))
   const [days, setDays]               = useState(() => { try { return JSON.parse(localStorage.getItem("bt_days") || "[]") } catch { return [] } })
   const [imgList, setImgList]         = useState(() => { try { return JSON.parse(localStorage.getItem("bt_imgList") || "[]") } catch { return [] } })
@@ -194,7 +194,6 @@ export function BacktestingPanel() {
   useEffect(() => { localStorage.setItem("bt_firmKey", firmKey) }, [firmKey])
   useEffect(() => { localStorage.setItem("bt_accountIdx", accountIdx) }, [accountIdx])
   useEffect(() => { localStorage.setItem("bt_personalRule", personalRule) }, [personalRule])
-  useEffect(() => { localStorage.setItem("bt_pnlUnit", pnlUnit) }, [pnlUnit])
   useEffect(() => { localStorage.setItem("bt_riskMult", riskMult) }, [riskMult])
   useEffect(() => { localStorage.setItem("bt_days", JSON.stringify(days)) }, [days])
   useEffect(() => {
@@ -310,14 +309,6 @@ export function BacktestingPanel() {
           <div style={lbl}>Cuenta</div>
           <select style={sel} value={accountIdx} onChange={e => setAccountIdx(Number(e.target.value))}>
             {firm.accounts.map((a, i) => <option key={i} value={i}>{a.label}</option>)}
-          </select>
-        </div>
-
-        <div style={{ minWidth: "120px" }}>
-          <div style={lbl}>Unidad de valores</div>
-          <select style={sel} value={pnlUnit} onChange={e => setPnlUnit(e.target.value)}>
-            <option value="usd">Dólares ($)</option>
-            <option value="pct">Porcentaje (%)</option>
           </select>
         </div>
 
