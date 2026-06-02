@@ -121,6 +121,12 @@ const navIcons = {
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
     </svg>
   ),
+  BACKTESTING: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18"/>
+      <path d="M7 16l4-8 4 4 4-6"/>
+    </svg>
+  ),
 }
 
 const refreshIcon = (
@@ -197,6 +203,15 @@ const navGroups = [
       { key: "REVIEW_TRADES",       label: "Trades" },
       { key: "REVIEW_METRICS",      label: "Métricas" },
       { key: "REVIEW_STRATEGIES",   label: "Estrategias" },
+    ],
+  },
+  {
+    id: "simulacion",
+    label: "Simulación",
+    color: "#f59e0b",
+    colorBg: "rgba(245,158,11,0.11)",
+    items: [
+      { key: "BACKTESTING", label: "Backtesting" },
     ],
   },
 ]
@@ -588,12 +603,14 @@ export function Sidebar({
 
   const toggleGroup = (id) => setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }))
 
-  const effectiveNavGroups = navGroups.map((g) => {
-    if (g.id === "finanzas" && userEmail === "juriascifuentes@gmail.com") {
-      return { ...g, items: [...g.items, { key: "ACCOUNTING", label: "Contabilidad" }] }
-    }
-    return g
-  })
+  const effectiveNavGroups = navGroups
+    .filter((g) => g.id !== "simulacion" || isAdmin || userLevel >= 3)
+    .map((g) => {
+      if (g.id === "finanzas" && userEmail === "juriascifuentes@gmail.com") {
+        return { ...g, items: [...g.items, { key: "ACCOUNTING", label: "Contabilidad" }] }
+      }
+      return g
+    })
 
   const allEffectiveItems = [
     { key: "DASHBOARD", label: "Dashboard" },
