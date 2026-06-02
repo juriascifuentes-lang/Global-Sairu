@@ -14,10 +14,9 @@ const FIRMS = {
   ORION: {
     label: "Orion Fund",
     accounts: [
-      { size: 5000,  label: "$5k" },
-      { size: 10000, label: "$10k" },
-      { size: 25000, label: "$25k" },
-      { size: 50000, label: "$50k" },
+      { size: 50000,  label: "$50k" },
+      { size: 100000, label: "$100k" },
+      { size: 200000, label: "$200k" },
     ],
     rules: { f1TargetPct: 0.08, f2TargetPct: 0.05, dailyLimitPct: 0.05, maxDrawdownPct: 0.10, minDays: 3 },
   },
@@ -178,7 +177,7 @@ function ResultBadge({ result }) {
 // ── Componente principal ──────────────────────────────────────────────────────
 export function BacktestingPanel() {
   const [firmKey, setFirmKey]         = useState(() => localStorage.getItem("bt_firmKey") || "FTMO")
-  const [accountIdx, setAccountIdx]   = useState(() => Number(localStorage.getItem("bt_accountIdx") ?? 2))
+  const [accountIdx, setAccountIdx]   = useState(0)
   const [personalRule, setPersonalRule] = useState(() => localStorage.getItem("bt_personalRule") !== "false")
   const pnlUnit = "usd"
   const [riskMult, setRiskMult]       = useState(() => Number(localStorage.getItem("bt_riskMult") ?? 1.0))
