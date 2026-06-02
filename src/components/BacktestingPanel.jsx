@@ -486,13 +486,6 @@ export function BacktestingPanel() {
                 ))}
               </div>
 
-              {/* P&L total */}
-              <div style={{ ...card, padding: "14px 16px" }}>
-                <div style={lbl}>P&L total acumulado (todas las cuentas)</div>
-                <div style={{ fontSize: "30px", fontWeight: 800, color: stats.pnl >= 0 ? "#10b981" : "#ef4444" }}>
-                  {fmtUsd(stats.pnl)}
-                </div>
-              </div>
 
               {/* Leyenda */}
               <div style={{ display: "flex", gap: "18px", flexWrap: "wrap" }}>
