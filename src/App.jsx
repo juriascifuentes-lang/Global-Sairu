@@ -23,6 +23,7 @@ import { ConnectMT5Panel } from "./components/ConnectMT5Panel"
 import { CopyTradingPanel } from "./components/CopyTradingPanel"
 import { ReviewComparative } from "./components/ReviewComparative"
 import { AccountingPanel } from "./components/AccountingPanel"
+import { BacktestingPanel } from "./components/BacktestingPanel"
 import { ConfirmModal } from "./components/ConfirmModal"
 import {
   RecentTradesWidget,
@@ -408,6 +409,7 @@ function App() {
     CALENDAR: "Calendario", STRATEGIES: "Estrategias", WITHDRAWALS: "Retiros",
     ROI_ACCOUNTS: "ROI de Cuentas", IMPORT: "Importar", ACCOUNTS: "Cuentas",
     COPY_TRADING: "Copiador", CONNECT_MT5: "Conectar", ADMIN: "Usuarios",
+    BACKTESTING: "Backtesting",
   }
 
   const bottomNavItems = [
@@ -500,6 +502,9 @@ function App() {
         {activePage === "ACCOUNTING" && session?.user?.email === "juriascifuentes@gmail.com" && (
           <AccountingPanel userId={userId} />
         )}
+
+        {/* ─── BACKTESTING ─── */}
+        {activePage === "BACKTESTING" && <BacktestingPanel />}
 
         {/* ─── COPY TRADING ─── */}
         {activePage === "COPY_TRADING" && (
