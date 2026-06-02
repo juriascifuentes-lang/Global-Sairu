@@ -221,7 +221,7 @@ export function BacktestingPanel() {
         const res  = await fetch("/api/backtesting/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: base64, mediaType }),
+          body: JSON.stringify({ image: base64, mediaType, filename: imgs[idx].name }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
