@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 
 // ── Presets de firmas ─────────────────────────────────────────────────────────
 const FIRMS = {
@@ -179,17 +179,32 @@ function ResultBadge({ result }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export function BacktestingPanel() {
-  const [firmKey, setFirmKey]         = useState("FTMO")
-  const [accountIdx, setAccountIdx]   = useState(2)       // $50k por defecto
-  const [personalRule, setPersonalRule] = useState(true)
-  const [pnlUnit, setPnlUnit]         = useState("usd")   // "usd" | "pct"
-  const [riskMult, setRiskMult]       = useState(1.0)
-  const [days, setDays]               = useState([])
-  const [imgList, setImgList]         = useState([])
+  const [firmKey, setFirmKey]         = useState(() => localStorage.getItem("bt_firmKey") || "FTMO")
+  const [accountIdx, setAccountIdx]   = useState(() => Number(localStorage.getItem("bt_accountIdx") ?? 2))
+  const [personalRule, setPersonalRule] = useState(() => localStorage.getItem("bt_personalRule") !== "false")
+  const [pnlUnit, setPnlUnit]         = useState(() => localStorage.getItem("bt_pnlUnit") || "usd")
+  const [riskMult, setRiskMult]       = useState(() => Number(localStorage.getItem("bt_riskMult") ?? 1.0))
+  const [days, setDays]               = useState(() => { try { return JSON.parse(localStorage.getItem("bt_days") || "[]") } catch { return [] } })
+  const [imgList, setImgList]         = useState(() => { try { return JSON.parse(localStorage.getItem("bt_imgList") || "[]") } catch { return [] } })
   const [loading, setLoading]         = useState(false)
   const [editingIdx, setEditingIdx]   = useState(null)
   const [editValue, setEditValue]     = useState("")
   const [dragOver, setDragOver]       = useState(false)
+
+
+  // Persistir configuración y datos en localStorage
+  useEffect(() => { localStorage.setItem("bt_firmKey", firmKey) }, [firmKey])
+  useEffect(() => { localStorage.setItem("bt_accountIdx", accountIdx) }, [accountIdx])
+  useEffect(() => { localStorage.setItem("bt_personalRule", personalRule) }, [personalRule])
+  useEffect(() => { localStorage.setItem("bt_pnlUnit", pnlUnit) }, [pnlUnit])
+  useEffect(() => { localStorage.setItem("bt_riskMult", riskMult) }, [riskMult])
+  useEffect(() => { localStorage.setItem("bt_days", JSON.stringify(days)) }, [days])
+  useEffect(() => {
+    // Solo guarda metadata de imágenes (no base64), filtrando las que están procesando
+    const toSave = imgList.map(im => ({ ...im, status: im.status === "procesando" ? "error" : im.status }))
+    localStorage.setItem("bt_imgList", JSON.stringify(toSave))
+  }, [imgList])
+
 
   const firm    = FIRMS[firmKey]
   const account = firm.accounts[accountIdx] || firm.accounts[0]
