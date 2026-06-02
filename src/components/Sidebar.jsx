@@ -603,12 +603,14 @@ export function Sidebar({
 
   const toggleGroup = (id) => setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }))
 
-  const effectiveNavGroups = navGroups.map((g) => {
-    if (g.id === "finanzas" && userEmail === "juriascifuentes@gmail.com") {
-      return { ...g, items: [...g.items, { key: "ACCOUNTING", label: "Contabilidad" }] }
-    }
-    return g
-  })
+  const effectiveNavGroups = navGroups
+    .filter((g) => g.id !== "simulacion" || isAdmin || userLevel >= 3)
+    .map((g) => {
+      if (g.id === "finanzas" && userEmail === "juriascifuentes@gmail.com") {
+        return { ...g, items: [...g.items, { key: "ACCOUNTING", label: "Contabilidad" }] }
+      }
+      return g
+    })
 
   const allEffectiveItems = [
     { key: "DASHBOARD", label: "Dashboard" },

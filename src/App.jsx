@@ -504,7 +504,7 @@ function App() {
         )}
 
         {/* ─── BACKTESTING ─── */}
-        {activePage === "BACKTESTING" && <BacktestingPanel />}
+        {activePage === "BACKTESTING" && (profile.is_admin || (profile.level || 1) >= 3) && <BacktestingPanel />}
 
         {/* ─── COPY TRADING ─── */}
         {activePage === "COPY_TRADING" && (
