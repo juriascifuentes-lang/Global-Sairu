@@ -21,7 +21,7 @@ const FIRMS = {
       { size: 25000, label: "$25k" },
       { size: 50000, label: "$50k" },
     ],
-    rules: { f1TargetPct: 0.08, f2TargetPct: 0.04, dailyLimitPct: 0.04, maxDrawdownPct: 0.08, minDays: 3 },
+    rules: { f1TargetPct: 0.08, f2TargetPct: 0.05, dailyLimitPct: 0.05, maxDrawdownPct: 0.10, minDays: 3 },
   },
 }
 
@@ -326,7 +326,7 @@ export function BacktestingPanel() {
         <div>
           <div style={lbl}>Multiplicador de riesgo</div>
           <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-            {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map(m => (
+            {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0].map(m => (
               <button key={m} onClick={() => setRiskMult(m)} style={{
                 padding: "7px 9px", borderRadius: "7px", fontSize: "11px", fontWeight: 700, cursor: "pointer",
                 background: riskMult === m ? "#10b981" : "var(--input-bg)",
