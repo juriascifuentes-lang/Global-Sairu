@@ -79,7 +79,9 @@ function runSimulation(days, config) {
         startDate,
         endDate: sorted[i - 1]?.date || startDate,
         days: daysF1,
+        pnlF1, pnlF2: null,
         pnlAccum: pnlF1,
+        blownPhase: blownF1 ? "F1" : null,
         result: blownF1 ? "QUEMADA" : "EN_PROGRESO",
         detail: blownF1 ? blownDetail : "F1 en progreso",
         savedDay,
@@ -121,7 +123,9 @@ function runSimulation(days, config) {
       startDate,
       endDate: sorted[i - 1]?.date || startDate,
       days: daysF1 + daysF2,
+      pnlF1, pnlF2,
       pnlAccum: pnlF1 + pnlF2,
+      blownPhase: blownF2 ? "F2" : null,
       result: f2Passed ? "FONDEADO" : blownF2 ? "QUEMADA" : "EN_PROGRESO",
       detail: f2Passed ? "Objetivos cumplidos" : blownF2 ? blownDetail : "F2 en progreso",
       savedDay,
@@ -197,10 +201,10 @@ export function BacktestingPanel() {
   const stats = useMemo(() => {
     const funded  = simulation.filter(a => a.result === "FONDEADO").length
     const blown   = simulation.filter(a => a.result === "QUEMADA").length
-    const total   = funded + blown
+    const total   = simulation.length
     const rate    = total > 0 ? Math.round(funded / total * 100) : 0
     const pnl     = simulation.reduce((s, a) => s + a.pnlAccum, 0)
-    return { funded, blown, total, rate, pnl, attempts: simulation.length }
+    return { funded, blown, total, rate, pnl, attempts: total }
   }, [simulation])
 
   // ── Procesar archivos ──────────────────────────────────────────────────────
@@ -495,7 +499,7 @@ export function BacktestingPanel() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                     <thead>
                       <tr style={{ background: "var(--input-bg)" }}>
-                        {["#", "Progreso", "Inicio", "Fin", "Días", "P&L acum.", "Resultado", "Detalle"].map(h => (
+                        {["#", "Progreso", "Inicio", "Fin", "Días", "F1 P&L", "F2 P&L", "Resultado", "Detalle"].map(h => (
                           <th key={h} style={{ padding: "10px 12px", textAlign: h === "#" || h === "Días" ? "center" : "left", color: "var(--text-muted)", fontWeight: 600, fontSize: "11px", whiteSpace: "nowrap" }}>
                             {h}
                           </th>
@@ -512,8 +516,13 @@ export function BacktestingPanel() {
                           <td style={{ padding: "9px 12px", color: "var(--text-2)", whiteSpace: "nowrap" }}>{a.startDate}</td>
                           <td style={{ padding: "9px 12px", color: "var(--text-2)", whiteSpace: "nowrap" }}>{a.endDate}</td>
                           <td style={{ padding: "9px 12px", textAlign: "center", color: "var(--text-2)" }}>{a.days}</td>
-                          <td style={{ padding: "9px 12px", fontWeight: 700, whiteSpace: "nowrap", color: a.pnlAccum >= 0 ? "#10b981" : "#ef4444" }}>
-                            {fmtUsd(a.pnlAccum)}
+                          <td style={{ padding: "9px 12px", fontWeight: 700, whiteSpace: "nowrap", color: a.pnlF1 >= 0 ? "#10b981" : "#ef4444" }}>
+                            {fmtUsd(a.pnlF1)}
+                            {a.blownPhase === "F1" && <span style={{ fontSize: "10px", color: "#ef4444", marginLeft: "4px" }}>✗F1</span>}
+                          </td>
+                          <td style={{ padding: "9px 12px", fontWeight: 700, whiteSpace: "nowrap", color: a.pnlF2 === null ? "var(--text-muted)" : a.pnlF2 >= 0 ? "#10b981" : "#ef4444" }}>
+                            {a.pnlF2 === null ? "—" : fmtUsd(a.pnlF2)}
+                            {a.blownPhase === "F2" && <span style={{ fontSize: "10px", color: "#ef4444", marginLeft: "4px" }}>✗F2</span>}
                           </td>
                           <td style={{ padding: "9px 12px" }}><ResultBadge result={a.result} /></td>
                           <td style={{ padding: "9px 12px", color: "var(--text-muted)", fontSize: "12px" }}>{a.detail}</td>
