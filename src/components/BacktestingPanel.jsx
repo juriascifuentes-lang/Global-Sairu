@@ -209,13 +209,13 @@ export function BacktestingPanel() {
     if (imgs.length === 0) return
     setLoading(true)
 
-    const baseIdx = imgList.length
-    const newMeta = imgs.map(f => ({ name: f.name, status: "procesando", count: 0 }))
+    // Cada imagen recibe una clave única para poder borrar sus días después
+    const batchTs = Date.now()
+    const newMeta = imgs.map((f, i) => ({ name: f.name, status: "procesando", count: 0, imgKey: `${batchTs}-${i}` }))
     setImgList(prev => [...prev, ...newMeta])
 
-    const allDays = []
-
     for (let idx = 0; idx < imgs.length; idx++) {
+      const imgKey = newMeta[idx].imgKey
       try {
         const { base64, mediaType } = await compressImage(imgs[idx])
         const res  = await fetch("/api/backtesting/analyze", {
@@ -225,35 +225,28 @@ export function BacktestingPanel() {
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-        const extracted = Array.isArray(data.days) ? data.days : []
-        allDays.push(...extracted)
-        setImgList(prev => {
-          const u = [...prev]
-          u[baseIdx + idx] = { ...u[baseIdx + idx], status: "ok", count: extracted.length }
-          return u
+        const extracted = (Array.isArray(data.days) ? data.days : []).map(d => ({ ...d, imgKey }))
+        setImgList(prev => prev.map(im => im.imgKey === imgKey ? { ...im, status: "ok", count: extracted.length } : im))
+        setDays(prev => {
+          const merged = [...prev]
+          for (const d of extracted) {
+            const i = merged.findIndex(x => x.date === d.date)
+            if (i >= 0) merged[i] = d
+            else merged.push(d)
+          }
+          return merged.sort((a, b) => a.date.localeCompare(b.date))
         })
       } catch (err) {
         const isKeyMissing = String(err?.message).includes("ANTHROPIC_API_KEY")
-        setImgList(prev => {
-          const u = [...prev]
-          u[baseIdx + idx] = { ...u[baseIdx + idx], status: "error", errorMsg: isKeyMissing ? "API key no configurada en Cloudflare" : (err?.message || "Error") }
-          return u
-        })
+        setImgList(prev => prev.map(im => im.imgKey === imgKey
+          ? { ...im, status: "error", errorMsg: isKeyMissing ? "API key no configurada" : (err?.message || "Error") }
+          : im
+        ))
       }
     }
 
-    setDays(prev => {
-      const merged = [...prev]
-      for (const d of allDays) {
-        const idx = merged.findIndex(x => x.date === d.date)
-        if (idx >= 0) merged[idx] = d
-        else merged.push(d)
-      }
-      return merged.sort((a, b) => a.date.localeCompare(b.date))
-    })
-
     setLoading(false)
-  }, [imgList.length])
+  }, [])
 
   const handleDrop = useCallback((e) => {
     e.preventDefault(); setDragOver(false)
@@ -265,6 +258,11 @@ export function BacktestingPanel() {
     e.target.value = ""
   }, [processFiles])
 
+  const deleteImage  = (imgKey) => {
+    setImgList(prev => prev.filter(im => im.imgKey !== imgKey))
+    setDays(prev => prev.filter(d => d.imgKey !== imgKey))
+  }
+  const clearAll     = () => { setImgList([]); setDays([]) }
   const deleteDay    = (idx) => setDays(prev => prev.filter((_, i) => i !== idx))
   const startEdit    = (idx) => { setEditingIdx(idx); setEditValue(String(days[idx].pnl)) }
   const commitEdit   = () => {
@@ -376,19 +374,25 @@ export function BacktestingPanel() {
           {/* Lista de imágenes */}
           {imgList.length > 0 && (
             <div style={card}>
-              <div style={{ ...lbl, marginBottom: "10px" }}>Imágenes procesadas</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                {imgList.map((img, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "5px 8px", background: "var(--input-bg)", borderRadius: "6px" }}>
-                    <span style={{ color: "var(--text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "180px" }}>{img.name}</span>
-                    <span style={{ fontWeight: 700, flexShrink: 0, color: img.status === "ok" ? "#10b981" : img.status === "error" ? "#ef4444" : "#f59e0b", maxWidth: "160px", textAlign: "right" }}>
-                      {img.status === "ok" ? `✓ ${img.count} días` : img.status === "error" ? `✗ ${img.errorMsg || "Error"}` : "..."}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                <div style={lbl}>Imágenes procesadas</div>
+                <button onClick={clearAll} style={{ fontSize: "11px", color: "#ef4444", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "6px", padding: "3px 8px", cursor: "pointer", fontWeight: 600 }}>
+                  Borrar todas
+                </button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "260px", overflowY: "auto" }}>
+                {imgList.map((img) => (
+                  <div key={img.imgKey} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", padding: "5px 8px", background: "var(--input-bg)", borderRadius: "6px" }}>
+                    <span style={{ color: "var(--text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{img.name}</span>
+                    <span style={{ fontWeight: 700, flexShrink: 0, color: img.status === "ok" ? "#10b981" : img.status === "error" ? "#ef4444" : "#f59e0b" }}>
+                      {img.status === "ok" ? `✓ ${img.count}` : img.status === "error" ? "✗" : "..."}
                     </span>
+                    <button onClick={() => deleteImage(img.imgKey)} title="Eliminar" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: "16px", lineHeight: 1, flexShrink: 0, padding: "0 2px" }}>×</button>
                   </div>
                 ))}
               </div>
-              <div style={{ marginTop: "10px", fontSize: "13px", color: "var(--text-2)", fontWeight: 600, borderTop: "1px solid var(--border-card)", paddingTop: "8px" }}>
-                {days.length} días cargados en total
+              <div style={{ marginTop: "8px", fontSize: "12px", color: "var(--text-muted)", borderTop: "1px solid var(--border-card)", paddingTop: "8px" }}>
+                {days.length} días · {imgList.filter(i => i.status === "ok").length} imágenes exitosas
               </div>
             </div>
           )}
