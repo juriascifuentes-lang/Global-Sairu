@@ -594,6 +594,7 @@ export function Sidebar({
   onLogout,
   isAdmin = false,
   userLevel = 1,
+  hasAcademia = false,
   showPct = false,
   onTogglePct,
   isMobile = false,
@@ -621,6 +622,7 @@ export function Sidebar({
 
   const effectiveNavGroups = navGroups
     .filter((g) => g.id !== "simulacion" || isAdmin || userLevel >= 3)
+    .filter((g) => g.id !== "academia" || isAdmin || hasAcademia)
     .map((g) => {
       if (g.id === "finanzas" && userEmail === "juriascifuentes@gmail.com") {
         return { ...g, items: [...g.items, { key: "ACCOUNTING", label: "Contabilidad" }] }

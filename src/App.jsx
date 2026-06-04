@@ -447,6 +447,7 @@ function App() {
         onSwitchAccount={handleSwitchAccount}
         isAdmin={profile.is_admin}
         userLevel={profile.level || 1}
+        hasAcademia={profile.is_admin || !!profile.has_academia}
         showPct={showPct}
         onTogglePct={(val) => setShowPct(val)}
         isMobile={isMobile}
@@ -509,7 +510,7 @@ function App() {
         {activePage === "BACKTESTING" && (profile.is_admin || (profile.level || 1) >= 3) && <BacktestingPanel />}
 
         {/* ─── CHART REVIEW ─── */}
-        {activePage === "CHART_REVIEW" && (
+        {activePage === "CHART_REVIEW" && (profile.is_admin || profile.has_academia) && (
           <ChartReviewPanel isAdmin={profile.is_admin} userId={userId} userEmail={userEmail} />
         )}
 
