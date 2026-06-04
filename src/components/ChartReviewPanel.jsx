@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import { supabase } from "../lib/supabase"
+import { showConfirm } from "../lib/confirm"
 
 const DAILY_LIMIT = 10
+const ADMIN_IMAGE_LIMIT = 10
 const weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
 const STATUS_STYLE = {
@@ -26,8 +28,21 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef(null)
 
+  useEffect(() => {
+    const onPaste = (e) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of items) {
+        if (item.type.startsWith("image/")) { uploadAdminImage(item.getAsFile()); break }
+      }
+    }
+    window.addEventListener("paste", onPaste)
+    return () => window.removeEventListener("paste", onPaste)
+  }, [adminImages])
+
   const uploadAdminImage = async (file) => {
     if (!file || !file.type.startsWith("image/")) return
+    if (adminImages.length >= ADMIN_IMAGE_LIMIT) return
     setUploading(true)
     const ext = file.name?.split(".").pop() || "png"
     const path = `admin/${submission.id}/${Date.now()}.${ext}`
@@ -132,18 +147,18 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
 
               {/* Dropzone para imágenes del admin */}
               <div
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+                onDragOver={(e) => { e.preventDefault(); if (adminImages.length < ADMIN_IMAGE_LIMIT) setDragOver(true) }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={(e) => { e.preventDefault(); setDragOver(false); uploadAdminImage(e.dataTransfer.files[0]) }}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => adminImages.length < ADMIN_IMAGE_LIMIT && fileInputRef.current?.click()}
                 style={{
-                  border: `2px dashed ${dragOver ? "#10b981" : "rgba(16,185,129,0.3)"}`,
+                  border: `2px dashed ${dragOver ? "#10b981" : adminImages.length >= ADMIN_IMAGE_LIMIT ? "rgba(148,163,184,0.15)" : "rgba(16,185,129,0.3)"}`,
                   borderRadius: "12px", padding: "18px 16px",
                   display: "flex", flexDirection: "column", alignItems: "center", gap: "6px",
-                  cursor: uploading ? "wait" : "pointer",
+                  cursor: uploading ? "wait" : adminImages.length >= ADMIN_IMAGE_LIMIT ? "not-allowed" : "pointer",
                   background: dragOver ? "rgba(16,185,129,0.05)" : "transparent",
                   transition: "all 0.15s",
-                  opacity: uploading ? 0.6 : 1,
+                  opacity: uploading || adminImages.length >= ADMIN_IMAGE_LIMIT ? 0.5 : 1,
                 }}
               >
                 <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(16,185,129,0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: "#10b981" }}>
@@ -160,9 +175,11 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
                   )}
                 </div>
                 <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-1)" }}>
-                  {uploading ? "Subiendo..." : "Adjuntar captura de análisis"}
+                  {uploading ? "Subiendo..." : adminImages.length >= ADMIN_IMAGE_LIMIT ? "Límite alcanzado" : "Adjuntar captura de análisis"}
                 </div>
-                <div style={{ fontSize: "11px", color: "#10b981" }}>arrastra o haz clic · Ctrl+V también funciona</div>
+                <div style={{ fontSize: "11px", color: adminImages.length >= ADMIN_IMAGE_LIMIT ? "var(--text-muted)" : "#10b981" }}>
+                  {adminImages.length >= ADMIN_IMAGE_LIMIT ? `${ADMIN_IMAGE_LIMIT}/${ADMIN_IMAGE_LIMIT} imágenes` : `arrastra, haz clic o Ctrl+V · ${adminImages.length}/${ADMIN_IMAGE_LIMIT}`}
+                </div>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => uploadAdminImage(e.target.files[0])} />
 
@@ -470,6 +487,13 @@ export function ChartReviewPanel({ isAdmin, userId, userEmail }) {
   }
 
   const handleDelete = async (submission) => {
+    const label = submission.user_email ? `la captura de ${submission.user_email.split("@")[0]}` : "esta captura"
+    const confirmed = await showConfirm(`¿Eliminar ${label}? Esta acción no se puede deshacer.`, {
+      title: "Eliminar captura",
+      confirmLabel: "Eliminar",
+      danger: true,
+    })
+    if (!confirmed) return
     const path = submission.image_url.split("/chart-reviews/")[1]
     if (path) await supabase.storage.from("chart-reviews").remove([path])
     await supabase.from("chart_reviews").delete().eq("id", submission.id)
