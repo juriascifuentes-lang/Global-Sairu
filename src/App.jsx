@@ -510,7 +510,7 @@ function App() {
 
         {/* ─── CHART REVIEW ─── */}
         {activePage === "CHART_REVIEW" && (
-          <ChartReviewPanel isAdmin={profile.is_admin} userId={userId} />
+          <ChartReviewPanel isAdmin={profile.is_admin} userId={userId} userEmail={userEmail} />
         )}
 
         {/* ─── COPY TRADING ─── */}
