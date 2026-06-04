@@ -20,14 +20,35 @@ function StatusBadge({ status }) {
 
 function ImageModal({ submission, isAdmin, onClose, onSave }) {
   const [notes, setNotes] = useState(submission.admin_notes || "")
+  const [adminImages, setAdminImages] = useState(submission.admin_images || [])
+  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const fileInputRef = useRef(null)
+
+  const uploadAdminImage = async (file) => {
+    if (!file || !file.type.startsWith("image/")) return
+    setUploading(true)
+    const ext = file.name?.split(".").pop() || "png"
+    const path = `admin/${submission.id}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from("chart-reviews").upload(path, file, { cacheControl: "3600" })
+    if (!error) {
+      const { data: { publicUrl } } = supabase.storage.from("chart-reviews").getPublicUrl(path)
+      setAdminImages((prev) => [...prev, publicUrl])
+    }
+    setUploading(false)
+  }
+
+  const removeAdminImage = (url) => setAdminImages((prev) => prev.filter((u) => u !== url))
 
   const handleSave = async () => {
     setSaving(true)
-    await onSave(submission.id, notes)
+    await onSave(submission.id, notes, adminImages)
     setSaving(false)
     onClose()
   }
+
+  const hasAdminFeedback = submission.admin_notes || (submission.admin_images?.length > 0)
 
   return (
     <div
@@ -40,7 +61,7 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
       }}
     >
       <div style={{
-        width: "100%", maxWidth: "820px",
+        width: "100%", maxWidth: "860px",
         background: "var(--card-bg)",
         borderRadius: "20px",
         border: "1px solid rgba(148,163,184,0.1)",
@@ -48,6 +69,7 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
         display: "flex", flexDirection: "column",
         maxHeight: "90vh",
       }}>
+        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--border-nav)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)" }}>
@@ -59,6 +81,7 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Chart del estudiante */}
           <img src={submission.image_url} alt="Chart" style={{ width: "100%", borderRadius: "12px", border: "1px solid var(--border-nav)", display: "block" }} />
 
           {submission.student_notes && (
@@ -70,16 +93,19 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
             </div>
           )}
 
+          {/* Sección de feedback */}
           {isAdmin ? (
-            <div>
-              <div style={{ fontSize: "10px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "8px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div style={{ fontSize: "10px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em" }}>
                 Tus anotaciones
               </div>
+
+              {/* Textarea */}
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Escribe tu feedback aquí..."
-                rows={4}
+                rows={3}
                 style={{
                   width: "100%", padding: "12px 14px", borderRadius: "12px",
                   border: "1px solid var(--border-input)", background: "var(--app-bg)",
@@ -88,11 +114,63 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
                   lineHeight: 1.55,
                 }}
               />
+
+              {/* Imágenes ya cargadas */}
+              {adminImages.length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "10px" }}>
+                  {adminImages.map((url) => (
+                    <div key={url} style={{ position: "relative", borderRadius: "10px", overflow: "hidden", border: "1px solid var(--border-input)", aspectRatio: "16/9", background: "#0d1117" }}>
+                      <img src={url} alt="Admin chart" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <button
+                        onClick={() => removeAdminImage(url)}
+                        style={{ position: "absolute", top: "6px", right: "6px", background: "rgba(0,0,0,0.7)", border: "none", color: "#f87171", borderRadius: "50%", width: "22px", height: "22px", cursor: "pointer", fontSize: "12px", display: "grid", placeItems: "center" }}
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Dropzone para imágenes del admin */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); uploadAdminImage(e.dataTransfer.files[0]) }}
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  border: `2px dashed ${dragOver ? "#10b981" : "rgba(16,185,129,0.3)"}`,
+                  borderRadius: "12px", padding: "18px 16px",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: "6px",
+                  cursor: uploading ? "wait" : "pointer",
+                  background: dragOver ? "rgba(16,185,129,0.05)" : "transparent",
+                  transition: "all 0.15s",
+                  opacity: uploading ? 0.6 : 1,
+                }}
+              >
+                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(16,185,129,0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: "#10b981" }}>
+                  {uploading ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ animation: "spin 1s linear infinite" }}>
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="17 8 12 3 7 8"/>
+                      <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                  )}
+                </div>
+                <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-1)" }}>
+                  {uploading ? "Subiendo..." : "Adjuntar captura de análisis"}
+                </div>
+                <div style={{ fontSize: "11px", color: "#10b981" }}>arrastra o haz clic · Ctrl+V también funciona</div>
+              </div>
+              <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => uploadAdminImage(e.target.files[0])} />
+
               <button
                 onClick={handleSave}
                 disabled={saving}
                 style={{
-                  marginTop: "10px", padding: "10px 22px", borderRadius: "11px", border: "none",
+                  padding: "10px 22px", borderRadius: "11px", border: "none", alignSelf: "flex-start",
                   background: saving ? "rgba(16,185,129,0.5)" : "linear-gradient(135deg,#10b981,#059669)",
                   color: "#fff", fontWeight: "700", fontSize: "13px",
                   cursor: saving ? "not-allowed" : "pointer", fontFamily: "Inter, Arial, sans-serif",
@@ -101,12 +179,27 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
                 {saving ? "Guardando..." : "Guardar y marcar revisado"}
               </button>
             </div>
-          ) : submission.admin_notes ? (
-            <div style={{ background: "rgba(16,185,129,0.07)", borderRadius: "12px", padding: "14px 16px", border: "1px solid rgba(16,185,129,0.2)" }}>
-              <div style={{ fontSize: "10px", fontWeight: "700", color: "#10b981", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "6px" }}>
+          ) : hasAdminFeedback ? (
+            <div style={{ background: "rgba(16,185,129,0.07)", borderRadius: "12px", padding: "16px", border: "1px solid rgba(16,185,129,0.2)", display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div style={{ fontSize: "10px", fontWeight: "700", color: "#10b981", textTransform: "uppercase", letterSpacing: "0.12em" }}>
                 Feedback del instructor
               </div>
-              <div style={{ fontSize: "13px", color: "var(--text-1)", lineHeight: 1.55 }}>{submission.admin_notes}</div>
+              {submission.admin_notes && (
+                <div style={{ fontSize: "13px", color: "var(--text-1)", lineHeight: 1.55 }}>{submission.admin_notes}</div>
+              )}
+              {submission.admin_images?.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ fontSize: "11px", color: "rgba(16,185,129,0.7)", fontWeight: "600" }}>
+                    Capturas del instructor ({submission.admin_images.length})
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "8px" }}>
+                    {submission.admin_images.map((url, i) => (
+                      <img key={i} src={url} alt={`Análisis ${i + 1}`} style={{ width: "100%", borderRadius: "10px", border: "1px solid rgba(16,185,129,0.2)", display: "block", cursor: "pointer" }}
+                        onClick={() => window.open(url, "_blank")} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ fontSize: "13px", color: "var(--text-muted)", fontStyle: "italic", textAlign: "center", padding: "8px 0" }}>
@@ -369,9 +462,9 @@ export function ChartReviewPanel({ isAdmin, userId, userEmail }) {
     setUploading(false)
   }
 
-  const handleSaveAdmin = async (id, notes) => {
+  const handleSaveAdmin = async (id, notes, images) => {
     await supabase.from("chart_reviews")
-      .update({ admin_notes: notes, status: "reviewed" })
+      .update({ admin_notes: notes, admin_images: images, status: "reviewed" })
       .eq("id", id)
     loadSubmissions()
   }
