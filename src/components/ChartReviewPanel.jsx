@@ -51,7 +51,7 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--border-nav)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)" }}>
-              {submission.profiles?.email || "Estudiante"}
+              {submission.user_email || "Estudiante"}
             </div>
             <StatusBadge status={submission.status} />
           </div>
@@ -273,7 +273,7 @@ function ChartCalendar({ submissions, isAdmin, userId, onSelectDay, selectedDay 
   )
 }
 
-export function ChartReviewPanel({ isAdmin, userId }) {
+export function ChartReviewPanel({ isAdmin, userId, userEmail }) {
   const [submissions, setSubmissions] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -290,7 +290,7 @@ export function ChartReviewPanel({ isAdmin, userId }) {
     setLoading(true)
     let query = supabase
       .from("chart_reviews")
-      .select("*, profiles(email)")
+      .select("*")
       .order("created_at", { ascending: false })
     if (!isAdmin) query = query.eq("user_id", userId)
     const { data } = await query
@@ -356,6 +356,7 @@ export function ChartReviewPanel({ isAdmin, userId }) {
 
     await supabase.from("chart_reviews").insert({
       user_id: userId,
+      user_email: userEmail || null,
       image_url: publicUrl,
       student_notes: studentNotes.trim() || null,
       status: "pending",
@@ -552,7 +553,7 @@ export function ChartReviewPanel({ isAdmin, userId }) {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
                     {isAdmin && (
                       <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "140px" }}>
-                        {s.profiles?.email?.split("@")[0] || "Estudiante"}
+                        {s.user_email?.split("@")[0] || "Estudiante"}
                       </div>
                     )}
                     <StatusBadge status={s.status} />
