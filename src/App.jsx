@@ -24,6 +24,7 @@ import { CopyTradingPanel } from "./components/CopyTradingPanel"
 import { ReviewComparative } from "./components/ReviewComparative"
 import { AccountingPanel } from "./components/AccountingPanel"
 import { BacktestingPanel } from "./components/BacktestingPanel"
+import { ChartReviewPanel } from "./components/ChartReviewPanel"
 import { ConfirmModal } from "./components/ConfirmModal"
 import {
   RecentTradesWidget,
@@ -410,6 +411,7 @@ function App() {
     ROI_ACCOUNTS: "ROI de Cuentas", IMPORT: "Importar", ACCOUNTS: "Cuentas",
     COPY_TRADING: "Copiador", CONNECT_MT5: "Conectar", ADMIN: "Usuarios",
     BACKTESTING: "Backtesting",
+    CHART_REVIEW: "Revisión de Charts",
   }
 
   const bottomNavItems = [
@@ -505,6 +507,11 @@ function App() {
 
         {/* ─── BACKTESTING ─── */}
         {activePage === "BACKTESTING" && (profile.is_admin || (profile.level || 1) >= 3) && <BacktestingPanel />}
+
+        {/* ─── CHART REVIEW ─── */}
+        {activePage === "CHART_REVIEW" && (
+          <ChartReviewPanel isAdmin={profile.is_admin} userId={userId} />
+        )}
 
         {/* ─── COPY TRADING ─── */}
         {activePage === "COPY_TRADING" && (
