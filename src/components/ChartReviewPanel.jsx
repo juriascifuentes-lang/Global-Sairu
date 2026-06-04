@@ -1,5 +1,8 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { supabase } from "../lib/supabase"
+
+const DAILY_LIMIT = 10
+const weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
 const STATUS_STYLE = {
   pending:  { bg: "rgba(245,158,11,0.15)",  color: "#fbbf24", label: "Pendiente" },
@@ -45,7 +48,6 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
         display: "flex", flexDirection: "column",
         maxHeight: "90vh",
       }}>
-        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--border-nav)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)" }}>
@@ -56,15 +58,9 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
           <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "18px", padding: "4px" }}>✕</button>
         </div>
 
-        {/* Image */}
         <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
-          <img
-            src={submission.image_url}
-            alt="Chart"
-            style={{ width: "100%", borderRadius: "12px", border: "1px solid var(--border-nav)", display: "block" }}
-          />
+          <img src={submission.image_url} alt="Chart" style={{ width: "100%", borderRadius: "12px", border: "1px solid var(--border-nav)", display: "block" }} />
 
-          {/* Student notes */}
           {submission.student_notes && (
             <div style={{ background: "var(--inner-bg)", borderRadius: "12px", padding: "14px 16px", border: "1px solid var(--border-input)" }}>
               <div style={{ fontSize: "10px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "6px" }}>
@@ -74,7 +70,6 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
             </div>
           )}
 
-          {/* Admin notes */}
           {isAdmin ? (
             <div>
               <div style={{ fontSize: "10px", fontWeight: "700", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "8px" }}>
@@ -124,6 +119,160 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
   )
 }
 
+function ChartCalendar({ submissions, isAdmin, userId, onSelectDay, selectedDay }) {
+  const today = new Date()
+  const [year, setYear] = useState(today.getFullYear())
+  const [month, setMonth] = useState(today.getMonth())
+
+  const countByDay = useMemo(() => {
+    const map = {}
+    submissions.forEach((s) => {
+      const d = new Date(s.created_at)
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        const key = d.getDate()
+        if (!map[key]) map[key] = { total: 0, pending: 0, reviewed: 0 }
+        map[key].total++
+        map[key][s.status]++
+      }
+    })
+    return map
+  }, [submissions, year, month])
+
+  const prevMonth = () => {
+    if (month === 0) { setMonth(11); setYear(y => y - 1) }
+    else setMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    if (month === 11) { setMonth(0); setYear(y => y + 1) }
+    else setMonth(m => m + 1)
+  }
+
+  const firstDay = new Date(year, month, 1)
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  // Monday-based: Sun=6, Mon=0 ... Sat=5
+  const startOffset = (firstDay.getDay() + 6) % 7
+
+  const monthLabel = new Date(year, month, 1).toLocaleDateString("es-CL", { month: "long", year: "numeric" })
+  const totalMonth = Object.values(countByDay).reduce((a, v) => a + v.total, 0)
+
+  const isToday = (d) => d === today.getDate() && month === today.getMonth() && year === today.getFullYear()
+  const isSelected = (d) => selectedDay && selectedDay.d === d && selectedDay.m === month && selectedDay.y === year
+
+  const cells = []
+  for (let i = 0; i < startOffset; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+
+  return (
+    <div style={{ background: "var(--card-bg)", borderRadius: "20px", padding: "24px", border: "1px solid rgba(148,163,184,0.08)" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: "20px" }}>
+        <div>
+          <div style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.14em", fontWeight: "600", marginBottom: "4px" }}>
+            Calendario operativo
+          </div>
+          <div style={{ fontSize: "20px", fontWeight: "800", color: "var(--text-1)", letterSpacing: "-0.01em", textTransform: "capitalize" }}>
+            {monthLabel}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+          {selectedDay && (
+            <button
+              onClick={() => onSelectDay(null)}
+              style={{ fontSize: "11px", fontWeight: "600", padding: "6px 12px", borderRadius: "9px", border: "1px solid rgba(16,185,129,0.3)", background: "transparent", color: "#10b981", cursor: "pointer", marginRight: "6px" }}
+            >
+              Ver todos
+            </button>
+          )}
+          <button onClick={prevMonth} style={{ border: "1px solid var(--border-input)", background: "var(--card-bg)", color: "var(--text-muted)", borderRadius: "10px", width: "34px", height: "34px", cursor: "pointer", display: "grid", placeItems: "center" }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button onClick={nextMonth} style={{ border: "1px solid var(--border-input)", background: "var(--card-bg)", color: "var(--text-muted)", borderRadius: "10px", width: "34px", height: "34px", cursor: "pointer", display: "grid", placeItems: "center" }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Weekday headers */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px", marginBottom: "4px" }}>
+        {weekdays.map((d) => (
+          <div key={d} style={{ textAlign: "center", fontSize: "11px", fontWeight: "700", color: "var(--text-muted)", padding: "4px 0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "4px" }}>
+        {cells.map((d, i) => {
+          if (!d) return <div key={`e${i}`} />
+          const info = countByDay[d]
+          const hasPending = info?.pending > 0
+          const allReviewed = info && info.total > 0 && info.pending === 0
+          const selected = isSelected(d)
+          const todayCell = isToday(d)
+
+          return (
+            <div
+              key={d}
+              onClick={() => info?.total > 0 && onSelectDay(selected ? null : { d, m: month, y: year })}
+              style={{
+                minHeight: "68px",
+                borderRadius: "10px",
+                padding: "8px",
+                background: selected
+                  ? "rgba(16,185,129,0.12)"
+                  : hasPending
+                  ? "rgba(245,158,11,0.06)"
+                  : allReviewed
+                  ? "rgba(16,185,129,0.05)"
+                  : "var(--inner-bg)",
+                border: selected
+                  ? "1px solid rgba(16,185,129,0.5)"
+                  : todayCell
+                  ? "1px solid rgba(16,185,129,0.3)"
+                  : "1px solid var(--border-input)",
+                cursor: info?.total > 0 ? "pointer" : "default",
+                transition: "all 0.12s",
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+              }}
+              onMouseEnter={(e) => { if (info?.total > 0 && !selected) e.currentTarget.style.borderColor = "#10b981" }}
+              onMouseLeave={(e) => { if (!selected && !todayCell) e.currentTarget.style.borderColor = "var(--border-input)"; else if (todayCell && !selected) e.currentTarget.style.borderColor = "rgba(16,185,129,0.3)" }}
+            >
+              <div style={{
+                fontSize: "12px", fontWeight: todayCell ? "800" : "600",
+                color: todayCell ? "#10b981" : "var(--text-1)",
+              }}>
+                {d}
+              </div>
+              {info?.total > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: "700", color: hasPending ? "#fbbf24" : "#10b981" }}>
+                    {info.total} {info.total === 1 ? "chart" : "charts"}
+                  </div>
+                  {info.pending > 0 && info.reviewed > 0 && (
+                    <div style={{ fontSize: "9px", color: "var(--text-muted)" }}>
+                      {info.reviewed} revisado{info.reviewed > 1 ? "s" : ""}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Footer */}
+      <div style={{ marginTop: "14px", textAlign: "right", fontSize: "12px", color: "var(--text-muted)" }}>
+        {totalMonth === 0
+          ? "Sin capturas este mes"
+          : `${totalMonth} captura${totalMonth > 1 ? "s" : ""} este mes`}
+      </div>
+    </div>
+  )
+}
+
 export function ChartReviewPanel({ isAdmin, userId }) {
   const [submissions, setSubmissions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -134,6 +283,7 @@ export function ChartReviewPanel({ isAdmin, userId }) {
   const [selected, setSelected] = useState(null)
   const [dragOver, setDragOver] = useState(false)
   const [uploadError, setUploadError] = useState("")
+  const [selectedDay, setSelectedDay] = useState(null)
   const fileInputRef = useRef(null)
 
   const loadSubmissions = async () => {
@@ -162,22 +312,34 @@ export function ChartReviewPanel({ isAdmin, userId }) {
       const items = e.clipboardData?.items
       if (!items) return
       for (const item of items) {
-        if (item.type.startsWith("image/")) {
-          handleFile(item.getAsFile())
-          break
-        }
+        if (item.type.startsWith("image/")) { handleFile(item.getAsFile()); break }
       }
     }
     window.addEventListener("paste", onPaste)
     return () => window.removeEventListener("paste", onPaste)
   }, [])
 
+  const todayKey = new Date().toISOString().slice(0, 10)
+
+  const todayCount = useMemo(() =>
+    submissions.filter((s) => {
+      const sameUser = isAdmin ? true : s.user_id === userId
+      return sameUser && new Date(s.created_at).toISOString().slice(0, 10) === todayKey
+    }).length
+  , [submissions])
+
   const handleUpload = async () => {
     if (!selectedFile) return
+
+    if (!isAdmin && todayCount >= DAILY_LIMIT) {
+      setUploadError(`Límite diario alcanzado (${DAILY_LIMIT} capturas por día).`)
+      return
+    }
+
     setUploading(true)
     setUploadError("")
 
-    const ext = selectedFile.name.split(".").pop()
+    const ext = selectedFile.name?.split(".").pop() || "png"
     const path = `${userId}/${Date.now()}.${ext}`
 
     const { error: storageErr } = await supabase.storage
@@ -223,7 +385,16 @@ export function ChartReviewPanel({ isAdmin, userId }) {
   const formatDate = (d) =>
     new Date(d).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
 
+  const displayedSubmissions = useMemo(() => {
+    if (!selectedDay) return submissions
+    return submissions.filter((s) => {
+      const d = new Date(s.created_at)
+      return d.getDate() === selectedDay.d && d.getMonth() === selectedDay.m && d.getFullYear() === selectedDay.y
+    })
+  }, [submissions, selectedDay])
+
   const pendingCount = submissions.filter((s) => s.status === "pending").length
+  const limitReached = !isAdmin && todayCount >= DAILY_LIMIT
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
@@ -244,23 +415,29 @@ export function ChartReviewPanel({ isAdmin, userId }) {
 
       {/* Upload area */}
       <div style={{ background: "var(--card-bg)", borderRadius: "20px", padding: "24px", border: "1px solid rgba(148,163,184,0.08)" }}>
-        <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)", marginBottom: "16px" }}>
-          Subir captura
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+          <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)" }}>Subir captura</div>
+          {!isAdmin && (
+            <div style={{ fontSize: "11px", color: limitReached ? "#f87171" : "var(--text-muted)", fontWeight: "600" }}>
+              {todayCount}/{DAILY_LIMIT} hoy
+            </div>
+          )}
         </div>
 
         {/* Dropzone */}
         <div
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+          onDragOver={(e) => { e.preventDefault(); if (!limitReached) setDragOver(true) }}
           onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]) }}
-          onClick={() => !preview && fileInputRef.current?.click()}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!limitReached) handleFile(e.dataTransfer.files[0]) }}
+          onClick={() => !preview && !limitReached && fileInputRef.current?.click()}
           style={{
-            border: `2px dashed ${dragOver ? "#10b981" : preview ? "rgba(16,185,129,0.4)" : "rgba(16,185,129,0.3)"}`,
+            border: `2px dashed ${dragOver ? "#10b981" : preview ? "rgba(16,185,129,0.4)" : limitReached ? "rgba(248,113,113,0.3)" : "rgba(16,185,129,0.3)"}`,
             borderRadius: "14px",
             padding: preview ? "12px" : "32px 20px",
             display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
-            cursor: preview ? "default" : "pointer",
+            cursor: preview ? "default" : limitReached ? "not-allowed" : "pointer",
             background: dragOver ? "rgba(16,185,129,0.06)" : "transparent",
+            opacity: limitReached && !preview ? 0.5 : 1,
             transition: "all 0.15s",
           }}
         >
@@ -269,45 +446,26 @@ export function ChartReviewPanel({ isAdmin, userId }) {
               <img src={preview} alt="Preview" style={{ maxHeight: "280px", maxWidth: "100%", borderRadius: "10px", display: "block", margin: "0 auto" }} />
               <button
                 onClick={(e) => { e.stopPropagation(); setSelectedFile(null); setPreview(null) }}
-                style={{
-                  position: "absolute", top: "8px", right: "8px",
-                  background: "rgba(0,0,0,0.6)", border: "none", color: "#fff",
-                  borderRadius: "50%", width: "26px", height: "26px",
-                  cursor: "pointer", fontSize: "13px", display: "grid", placeItems: "center",
-                }}
-              >
-                ✕
-              </button>
+                style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(0,0,0,0.6)", border: "none", color: "#fff", borderRadius: "50%", width: "26px", height: "26px", cursor: "pointer", fontSize: "13px", display: "grid", placeItems: "center" }}
+              >✕</button>
             </div>
           ) : (
             <>
-              <div style={{
-                width: "52px", height: "52px", borderRadius: "14px",
-                background: "rgba(16,185,129,0.12)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#10b981",
-              }}>
+              <div style={{ width: "52px", height: "52px", borderRadius: "14px", background: "rgba(16,185,129,0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: "#10b981" }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="17 8 12 3 7 8"/>
                   <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
               </div>
-              <div style={{ color: "var(--text-1)", fontWeight: "600", fontSize: "14px" }}>
-                Arrastra tu captura aquí
-              </div>
-              <div style={{ color: "#10b981", fontSize: "13px", fontWeight: "500" }}>
-                o haz clic para seleccionar
-              </div>
-              <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>
-                PNG, JPG, WebP · también puedes pegar con Ctrl+V
-              </div>
+              <div style={{ color: "var(--text-1)", fontWeight: "600", fontSize: "14px" }}>Arrastra tu captura aquí</div>
+              <div style={{ color: "#10b981", fontSize: "13px", fontWeight: "500" }}>o haz clic para seleccionar</div>
+              <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>PNG, JPG, WebP · también puedes pegar con Ctrl+V</div>
             </>
           )}
         </div>
         <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleFile(e.target.files[0])} />
 
-        {/* Description */}
         <textarea
           value={studentNotes}
           onChange={(e) => setStudentNotes(e.target.value)}
@@ -330,12 +488,12 @@ export function ChartReviewPanel({ isAdmin, userId }) {
 
         <button
           onClick={handleUpload}
-          disabled={!selectedFile || uploading}
+          disabled={!selectedFile || uploading || limitReached}
           style={{
             marginTop: "12px", padding: "10px 22px", borderRadius: "11px", border: "none",
-            background: (!selectedFile || uploading) ? "rgba(16,185,129,0.3)" : "linear-gradient(135deg,#10b981,#059669)",
+            background: (!selectedFile || uploading || limitReached) ? "rgba(16,185,129,0.3)" : "linear-gradient(135deg,#10b981,#059669)",
             color: "#fff", fontWeight: "700", fontSize: "13px",
-            cursor: (!selectedFile || uploading) ? "not-allowed" : "pointer",
+            cursor: (!selectedFile || uploading || limitReached) ? "not-allowed" : "pointer",
             fontFamily: "Inter, Arial, sans-serif",
           }}
         >
@@ -343,13 +501,24 @@ export function ChartReviewPanel({ isAdmin, userId }) {
         </button>
       </div>
 
+      {/* Calendar */}
+      <ChartCalendar
+        submissions={submissions}
+        isAdmin={isAdmin}
+        userId={userId}
+        selectedDay={selectedDay}
+        onSelectDay={setSelectedDay}
+      />
+
       {/* Gallery */}
       <div style={{ background: "var(--card-bg)", borderRadius: "20px", padding: "24px", border: "1px solid rgba(148,163,184,0.08)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
           <h2 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "var(--text-1)" }}>
-            {isAdmin ? "Capturas recibidas" : "Mis capturas"}
+            {selectedDay
+              ? `${selectedDay.d} de ${new Date(selectedDay.y, selectedDay.m, 1).toLocaleDateString("es-CL", { month: "long" })} · ${displayedSubmissions.length} captura${displayedSubmissions.length !== 1 ? "s" : ""}`
+              : isAdmin ? "Todas las capturas" : "Mis capturas"}
           </h2>
-          {isAdmin && pendingCount > 0 && (
+          {!selectedDay && isAdmin && pendingCount > 0 && (
             <span style={{ fontSize: "11px", background: "rgba(245,158,11,0.15)", color: "#fbbf24", padding: "2px 8px", borderRadius: "999px", fontWeight: "700" }}>
               {pendingCount} pendiente{pendingCount > 1 ? "s" : ""}
             </span>
@@ -358,47 +527,27 @@ export function ChartReviewPanel({ isAdmin, userId }) {
 
         {loading ? (
           <div style={{ color: "var(--text-muted)", fontSize: "14px" }}>Cargando...</div>
-        ) : submissions.length === 0 ? (
+        ) : displayedSubmissions.length === 0 ? (
           <div style={{ color: "var(--text-muted)", fontSize: "14px", padding: "12px 0" }}>
-            {isAdmin ? "No hay capturas enviadas aún" : "Aún no has enviado capturas"}
+            {selectedDay ? "No hay capturas ese día" : isAdmin ? "No hay capturas enviadas aún" : "Aún no has enviado capturas"}
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "14px" }}>
-            {submissions.map((s) => (
+            {displayedSubmissions.map((s) => (
               <div
                 key={s.id}
-                style={{
-                  background: "var(--inner-bg)", borderRadius: "14px",
-                  border: "1px solid var(--border-input)", overflow: "hidden",
-                  cursor: "pointer", transition: "border-color 0.15s",
-                }}
+                style={{ background: "var(--inner-bg)", borderRadius: "14px", border: "1px solid var(--border-input)", overflow: "hidden", cursor: "pointer", transition: "border-color 0.15s" }}
                 onMouseEnter={(e) => e.currentTarget.style.borderColor = "#10b981"}
                 onMouseLeave={(e) => e.currentTarget.style.borderColor = "var(--border-input)"}
               >
-                {/* Thumbnail */}
-                <div
-                  onClick={() => setSelected(s)}
-                  style={{ position: "relative", aspectRatio: "16/9", overflow: "hidden", background: "#0d1117" }}
-                >
-                  <img
-                    src={s.image_url}
-                    alt="Chart"
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                  />
+                <div onClick={() => setSelected(s)} style={{ position: "relative", aspectRatio: "16/9", overflow: "hidden", background: "#0d1117" }}>
+                  <img src={s.image_url} alt="Chart" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                   {s.status === "reviewed" && (
-                    <div style={{
-                      position: "absolute", top: "8px", right: "8px",
-                      background: "rgba(16,185,129,0.9)", borderRadius: "50%",
-                      width: "22px", height: "22px", display: "grid", placeItems: "center",
-                    }}>
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"/>
-                      </svg>
+                    <div style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(16,185,129,0.9)", borderRadius: "50%", width: "22px", height: "22px", display: "grid", placeItems: "center" }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     </div>
                   )}
                 </div>
-
-                {/* Info */}
                 <div style={{ padding: "12px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
                     {isAdmin && (
@@ -416,17 +565,11 @@ export function ChartReviewPanel({ isAdmin, userId }) {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>{formatDate(s.created_at)}</div>
                     <div style={{ display: "flex", gap: "6px" }}>
-                      <button
-                        onClick={() => setSelected(s)}
-                        style={{ fontSize: "11px", fontWeight: "600", padding: "4px 10px", borderRadius: "8px", border: "none", background: "rgba(16,185,129,0.12)", color: "#10b981", cursor: "pointer" }}
-                      >
+                      <button onClick={() => setSelected(s)} style={{ fontSize: "11px", fontWeight: "600", padding: "4px 10px", borderRadius: "8px", border: "none", background: "rgba(16,185,129,0.12)", color: "#10b981", cursor: "pointer" }}>
                         {isAdmin ? "Revisar" : "Ver"}
                       </button>
                       {(isAdmin || s.user_id === userId) && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(s) }}
-                          style={{ fontSize: "11px", fontWeight: "600", padding: "4px 10px", borderRadius: "8px", border: "none", background: "rgba(248,113,113,0.1)", color: "#f87171", cursor: "pointer" }}
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(s) }} style={{ fontSize: "11px", fontWeight: "600", padding: "4px 10px", borderRadius: "8px", border: "none", background: "rgba(248,113,113,0.1)", color: "#f87171", cursor: "pointer" }}>
                           Eliminar
                         </button>
                       )}
