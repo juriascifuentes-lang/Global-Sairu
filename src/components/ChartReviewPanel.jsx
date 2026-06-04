@@ -20,12 +20,53 @@ function StatusBadge({ status }) {
   )
 }
 
+function Lightbox({ src, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose() }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 2000,
+        background: "rgba(0,0,0,0.92)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "20px", cursor: "zoom-out",
+      }}
+    >
+      <img
+        src={src}
+        alt="Zoom"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: "100%", maxHeight: "100%",
+          borderRadius: "10px", boxShadow: "0 24px 80px rgba(0,0,0,0.6)",
+          cursor: "default",
+        }}
+      />
+      <button
+        onClick={onClose}
+        style={{
+          position: "absolute", top: "18px", right: "22px",
+          background: "rgba(255,255,255,0.1)", border: "none", color: "#fff",
+          borderRadius: "50%", width: "34px", height: "34px",
+          cursor: "pointer", fontSize: "16px", display: "grid", placeItems: "center",
+        }}
+      >✕</button>
+    </div>
+  )
+}
+
 function ImageModal({ submission, isAdmin, onClose, onSave }) {
   const [notes, setNotes] = useState(submission.admin_notes || "")
   const [adminImages, setAdminImages] = useState(submission.admin_images || [])
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [lightbox, setLightbox] = useState(null)
   const fileInputRef = useRef(null)
 
   useEffect(() => {
@@ -97,7 +138,11 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
 
         <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
           {/* Chart del estudiante */}
-          <img src={submission.image_url} alt="Chart" style={{ width: "100%", borderRadius: "12px", border: "1px solid var(--border-nav)", display: "block" }} />
+          <img
+            src={submission.image_url} alt="Chart"
+            onClick={() => setLightbox(submission.image_url)}
+            style={{ width: "100%", borderRadius: "12px", border: "1px solid var(--border-nav)", display: "block", cursor: "zoom-in" }}
+          />
 
           {submission.student_notes && (
             <div style={{ background: "var(--inner-bg)", borderRadius: "12px", padding: "14px 16px", border: "1px solid var(--border-input)" }}>
@@ -135,7 +180,7 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "10px" }}>
                   {adminImages.map((url) => (
                     <div key={url} style={{ position: "relative", borderRadius: "10px", overflow: "hidden", border: "1px solid var(--border-input)", aspectRatio: "16/9", background: "#0d1117" }}>
-                      <img src={url} alt="Admin chart" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={url} alt="Admin chart" onClick={() => setLightbox(url)} style={{ width: "100%", height: "100%", objectFit: "cover", cursor: "zoom-in" }} />
                       <button
                         onClick={() => removeAdminImage(url)}
                         style={{ position: "absolute", top: "6px", right: "6px", background: "rgba(0,0,0,0.7)", border: "none", color: "#f87171", borderRadius: "50%", width: "22px", height: "22px", cursor: "pointer", fontSize: "12px", display: "grid", placeItems: "center" }}
@@ -211,8 +256,9 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "8px" }}>
                     {submission.admin_images.map((url, i) => (
-                      <img key={i} src={url} alt={`Análisis ${i + 1}`} style={{ width: "100%", borderRadius: "10px", border: "1px solid rgba(16,185,129,0.2)", display: "block", cursor: "pointer" }}
-                        onClick={() => window.open(url, "_blank")} />
+                      <img key={i} src={url} alt={`Análisis ${i + 1}`}
+                        onClick={() => setLightbox(url)}
+                        style={{ width: "100%", borderRadius: "10px", border: "1px solid rgba(16,185,129,0.2)", display: "block", cursor: "zoom-in" }} />
                     ))}
                   </div>
                 </div>
@@ -225,6 +271,7 @@ function ImageModal({ submission, isAdmin, onClose, onSave }) {
           )}
         </div>
       </div>
+      {lightbox && <Lightbox src={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   )
 }
