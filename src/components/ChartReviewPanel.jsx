@@ -157,6 +157,21 @@ export function ChartReviewPanel({ isAdmin, userId }) {
     setUploadError("")
   }
 
+  useEffect(() => {
+    const onPaste = (e) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          handleFile(item.getAsFile())
+          break
+        }
+      }
+    }
+    window.addEventListener("paste", onPaste)
+    return () => window.removeEventListener("paste", onPaste)
+  }, [])
+
   const handleUpload = async () => {
     if (!selectedFile) return
     setUploading(true)
@@ -240,18 +255,17 @@ export function ChartReviewPanel({ isAdmin, userId }) {
           onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]) }}
           onClick={() => !preview && fileInputRef.current?.click()}
           style={{
-            border: `2px dashed ${dragOver ? "#10b981" : preview ? "rgba(16,185,129,0.4)" : "var(--border-input)"}`,
+            border: `2px dashed ${dragOver ? "#10b981" : preview ? "rgba(16,185,129,0.4)" : "rgba(16,185,129,0.3)"}`,
             borderRadius: "14px",
-            padding: preview ? "12px" : "36px 20px",
-            textAlign: "center",
+            padding: preview ? "12px" : "32px 20px",
+            display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
             cursor: preview ? "default" : "pointer",
-            transition: "border-color 0.15s, background 0.15s",
-            background: dragOver ? "rgba(16,185,129,0.04)" : "var(--inner-bg)",
-            position: "relative",
+            background: dragOver ? "rgba(16,185,129,0.06)" : "transparent",
+            transition: "all 0.15s",
           }}
         >
           {preview ? (
-            <div style={{ position: "relative", display: "inline-block", width: "100%" }}>
+            <div style={{ position: "relative", width: "100%" }}>
               <img src={preview} alt="Preview" style={{ maxHeight: "280px", maxWidth: "100%", borderRadius: "10px", display: "block", margin: "0 auto" }} />
               <button
                 onClick={(e) => { e.stopPropagation(); setSelectedFile(null); setPreview(null) }}
@@ -267,11 +281,27 @@ export function ChartReviewPanel({ isAdmin, userId }) {
             </div>
           ) : (
             <>
-              <div style={{ fontSize: "36px", marginBottom: "10px", opacity: 0.4 }}>📊</div>
-              <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-muted)", marginBottom: "4px" }}>
+              <div style={{
+                width: "52px", height: "52px", borderRadius: "14px",
+                background: "rgba(16,185,129,0.12)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#10b981",
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
+              <div style={{ color: "var(--text-1)", fontWeight: "600", fontSize: "14px" }}>
                 Arrastra tu captura aquí
               </div>
-              <div style={{ fontSize: "12px", color: "var(--text-muted)", opacity: 0.6 }}>o haz clic para seleccionar</div>
+              <div style={{ color: "#10b981", fontSize: "13px", fontWeight: "500" }}>
+                o haz clic para seleccionar
+              </div>
+              <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>
+                PNG, JPG, WebP · también puedes pegar con Ctrl+V
+              </div>
             </>
           )}
         </div>
