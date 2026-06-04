@@ -39,6 +39,11 @@ export function AdminPanel() {
     loadUsers()
   }
 
+  const toggleAcademia = async (id, current) => {
+    await supabase.from("profiles").update({ has_academia: !current }).eq("id", id)
+    loadUsers()
+  }
+
   const revokeUser = async (id) => {
     if (await showConfirm("¿Revocar el acceso de este usuario?", { title: "Revocar acceso", confirmLabel: "Revocar", danger: true })) {
       await supabase.from("profiles").update({ is_approved: false }).eq("id", id)
@@ -180,11 +185,16 @@ export function AdminPanel() {
                       </span>
                     )}
                     {!user.is_admin && <LevelBadge level={user.level || 1} />}
+                    {!user.is_admin && user.has_academia && (
+                      <span style={{ fontSize: "10px", background: "rgba(56,189,248,0.15)", color: "#38bdf8", padding: "2px 8px", borderRadius: "999px", fontWeight: "700" }}>
+                        Academia
+                      </span>
+                    )}
                   </div>
                   <div style={{ color: "var(--text-muted)", fontSize: "11px", marginTop: "2px" }}>Desde {formatDate(user.created_at)}</div>
                 </div>
                 {!user.is_admin && (
-                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
                     {[1, 2, 3].filter((l) => l !== (user.level || 1)).map((l) => (
                       <button
                         key={l}
@@ -195,6 +205,18 @@ export function AdminPanel() {
                         → Niv.{l}
                       </button>
                     ))}
+                    <button
+                      onClick={() => toggleAcademia(user.id, user.has_academia)}
+                      title={user.has_academia ? "Quitar acceso a Academia" : "Dar acceso a Academia"}
+                      style={{
+                        padding: "7px 12px", borderRadius: "10px", fontSize: "11px", fontWeight: "700", cursor: "pointer",
+                        border: user.has_academia ? "1px solid rgba(56,189,248,0.4)" : "1px solid rgba(148,163,184,0.2)",
+                        background: user.has_academia ? "rgba(56,189,248,0.1)" : "transparent",
+                        color: user.has_academia ? "#38bdf8" : "var(--text-muted)",
+                      }}
+                    >
+                      {user.has_academia ? "Academia ✓" : "Academia"}
+                    </button>
                     <button
                       onClick={() => revokeUser(user.id)}
                       style={{ padding: "7px 12px", borderRadius: "10px", border: "1px solid rgba(248,113,113,0.3)", background: "transparent", color: "#f87171", fontWeight: "600", fontSize: "12px", cursor: "pointer" }}
