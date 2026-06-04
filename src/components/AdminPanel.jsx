@@ -56,18 +56,27 @@ export function AdminPanel() {
   const formatDate = (d) =>
     new Date(d).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" })
 
-  const LevelBadge = ({ level }) => (
-    <span style={{
-      fontSize: "10px",
-      background: level === 2 ? "rgba(139,92,246,0.15)" : "rgba(59,130,246,0.15)",
-      color: level === 2 ? "#a78bfa" : "#60a5fa",
-      padding: "2px 8px",
-      borderRadius: "999px",
-      fontWeight: "700",
-    }}>
-      Nivel {level}
-    </span>
-  )
+  const levelStyle = {
+    1: { bg: "rgba(59,130,246,0.15)",  color: "#60a5fa" },
+    2: { bg: "rgba(139,92,246,0.15)",  color: "#a78bfa" },
+    3: { bg: "rgba(245,158,11,0.15)",  color: "#fbbf24" },
+  }
+
+  const LevelBadge = ({ level }) => {
+    const s = levelStyle[level] || levelStyle[1]
+    return (
+      <span style={{
+        fontSize: "10px",
+        background: s.bg,
+        color: s.color,
+        padding: "2px 8px",
+        borderRadius: "999px",
+        fontWeight: "700",
+      }}>
+        Nivel {level}
+      </span>
+    )
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -84,10 +93,11 @@ export function AdminPanel() {
       </div>
 
       {/* Niveles info */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
         {[
           { level: 1, color: "#60a5fa", bg: "rgba(59,130,246,0.08)", desc: "Acceso a todo excepto Copiador" },
           { level: 2, color: "#a78bfa", bg: "rgba(139,92,246,0.08)", desc: "Acceso completo a todo" },
+          { level: 3, color: "#fbbf24", bg: "rgba(245,158,11,0.08)", desc: "Nivel 2 + Simulación" },
         ].map(({ level, color, bg, desc }) => (
           <div key={level} style={{ background: bg, border: `1px solid ${color}22`, borderRadius: "14px", padding: "14px 16px" }}>
             <div style={{ fontSize: "12px", fontWeight: "700", color, marginBottom: "4px" }}>Nivel {level}</div>
@@ -132,9 +142,15 @@ export function AdminPanel() {
                   </button>
                   <button
                     onClick={() => approveUser(user.id, 2)}
-                    style={{ padding: "8px 14px", borderRadius: "10px", border: "none", background: "linear-gradient(135deg, #10b981, #059669)", color: "#fff", fontWeight: "700", fontSize: "12px", cursor: "pointer" }}
+                    style={{ padding: "8px 14px", borderRadius: "10px", border: "none", background: "rgba(139,92,246,0.15)", color: "#a78bfa", fontWeight: "700", fontSize: "12px", cursor: "pointer" }}
                   >
                     Aprobar Niv.2
+                  </button>
+                  <button
+                    onClick={() => approveUser(user.id, 3)}
+                    style={{ padding: "8px 14px", borderRadius: "10px", border: "none", background: "rgba(245,158,11,0.15)", color: "#fbbf24", fontWeight: "700", fontSize: "12px", cursor: "pointer" }}
+                  >
+                    Aprobar Niv.3
                   </button>
                 </div>
               </div>
@@ -169,13 +185,16 @@ export function AdminPanel() {
                 </div>
                 {!user.is_admin && (
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                    <button
-                      onClick={() => setLevel(user.id, user.level === 1 ? 2 : 1)}
-                      title={`Cambiar a Nivel ${user.level === 1 ? 2 : 1}`}
-                      style={{ padding: "7px 12px", borderRadius: "10px", border: "1px solid rgba(148,163,184,0.2)", background: "transparent", color: "var(--text-muted)", fontWeight: "600", fontSize: "11px", cursor: "pointer" }}
-                    >
-                      → Niv.{user.level === 1 ? 2 : 1}
-                    </button>
+                    {[1, 2, 3].filter((l) => l !== (user.level || 1)).map((l) => (
+                      <button
+                        key={l}
+                        onClick={() => setLevel(user.id, l)}
+                        title={`Cambiar a Nivel ${l}`}
+                        style={{ padding: "7px 12px", borderRadius: "10px", border: `1px solid ${levelStyle[l].color}44`, background: "transparent", color: levelStyle[l].color, fontWeight: "600", fontSize: "11px", cursor: "pointer" }}
+                      >
+                        → Niv.{l}
+                      </button>
+                    ))}
                     <button
                       onClick={() => revokeUser(user.id)}
                       style={{ padding: "7px 12px", borderRadius: "10px", border: "1px solid rgba(248,113,113,0.3)", background: "transparent", color: "#f87171", fontWeight: "600", fontSize: "12px", cursor: "pointer" }}
