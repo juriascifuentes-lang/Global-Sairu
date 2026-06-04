@@ -531,8 +531,8 @@ export function ChartReviewPanel({ isAdmin, userId, userEmail }) {
         </p>
       </div>
 
-      {/* Upload area */}
-      <div style={{ background: "var(--card-bg)", borderRadius: "20px", padding: "24px", border: "1px solid rgba(148,163,184,0.08)" }}>
+      {/* Upload area — solo estudiantes */}
+      {!isAdmin && <div style={{ background: "var(--card-bg)", borderRadius: "20px", padding: "24px", border: "1px solid rgba(148,163,184,0.08)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
           <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-1)" }}>Subir captura</div>
           {!isAdmin && (
@@ -617,7 +617,7 @@ export function ChartReviewPanel({ isAdmin, userId, userEmail }) {
         >
           {uploading ? "Subiendo..." : "Enviar captura"}
         </button>
-      </div>
+      </div>}
 
       {/* Calendar */}
       <ChartCalendar
