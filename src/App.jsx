@@ -150,7 +150,10 @@ function App() {
   })
 
   useEffect(() => {
+    // Safety timeout: if Supabase doesn't respond in 8s (paused project, network issue), stop loading
+    const timeout = setTimeout(() => setAuthLoading(false), 8000)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      clearTimeout(timeout)
       if (event === "PASSWORD_RECOVERY") {
         setPasswordRecovery(true)
         setSession(session)
@@ -170,7 +173,7 @@ function App() {
       }
       setAuthLoading(false)
     })
-    return () => subscription.unsubscribe()
+    return () => { clearTimeout(timeout); subscription.unsubscribe() }
   }, [])
 
   useEffect(() => {
