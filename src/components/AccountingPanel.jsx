@@ -554,6 +554,45 @@ function ExtraerModal({ userId, onClose, onImported }) {
               </datalist>
             </div>
 
+            {/* Selector global de tipo */}
+            {(() => {
+              const GLOBAL_TYPES = [
+                { key: "retiro", label: "↑ Retiro",  color: "#10b981", bg: "rgba(16,185,129,0.13)" },
+                { key: "examen", label: "✕ Examen",  color: "#f87171", bg: "rgba(248,113,113,0.13)" },
+                { key: "gasto",  label: "$ Gasto",   color: "#94a3b8", bg: "rgba(148,163,184,0.13)" },
+              ]
+              // Detecta si todos los válidos tienen el mismo tipo
+              const validIdxs = data.transactions.map((t, i) => t.valid ? i : null).filter((i) => i !== null)
+              const allSameType = validIdxs.length > 0 && validIdxs.every((i) => getRowType(i, data.transactions[i]) === getRowType(validIdxs[0], data.transactions[validIdxs[0]]))
+              const currentGlobal = allSameType ? getRowType(validIdxs[0], data.transactions[validIdxs[0]]) : null
+              const setAllTypes = (type) => {
+                const overrides = {}
+                data.transactions.forEach((t, i) => { if (t.valid) overrides[i] = type })
+                setTypeOverrides(overrides)
+              }
+              return (
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", background: "var(--inner-bg)", borderRadius: "11px" }}>
+                  <span style={{ fontSize: "12px", color: "var(--text-muted)", whiteSpace: "nowrap", flexShrink: 0 }}>Tipo para todos:</span>
+                  <div style={{ display: "flex", gap: "6px", flex: 1 }}>
+                    {GLOBAL_TYPES.map((gt) => (
+                      <button key={gt.key} type="button"
+                        onClick={() => setAllTypes(gt.key)}
+                        style={{
+                          flex: 1, padding: "7px 0", borderRadius: "9px", border: "none",
+                          background: currentGlobal === gt.key ? gt.bg : "transparent",
+                          color: currentGlobal === gt.key ? gt.color : "var(--text-muted)",
+                          fontWeight: currentGlobal === gt.key ? "800" : "500",
+                          fontSize: "12px", cursor: "pointer",
+                          outline: currentGlobal === gt.key ? `1.5px solid ${gt.color}` : "1px solid var(--border-sub)",
+                          fontFamily: "Inter, Arial, sans-serif", transition: "all 0.12s",
+                        }}
+                      >{gt.label}</button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
+
             {/* Resumen */}
             <div style={{ display: "flex", gap: "12px" }}>
               <div style={{ flex: 1, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)", borderRadius: "10px", padding: "10px 14px", textAlign: "center" }}>
