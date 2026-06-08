@@ -326,6 +326,306 @@ function MovimientoModal({ form, setForm, onSave, onClose, saving }) {
   )
 }
 
+// ── OCR / Extraer historial modal ────────────────────────────────
+function ExtraerModal({ userId, onClose, onImported }) {
+  const [step, setStep]         = useState("upload") // "upload"|"analyzing"|"results"|"importing"
+  const [imageFile, setImageFile] = useState(null)
+  const [preview, setPreview]   = useState(null)
+  const [drag, setDrag]         = useState(false)
+  const [data, setData]         = useState(null)
+  const [selected, setSelected] = useState(new Set())
+  const [company, setCompany]   = useState("")
+  const [error, setError]       = useState(null)
+
+  const handleFile = (file) => {
+    if (!file) return
+    const ok = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+    if (!ok.includes(file.type)) { setError("Solo imágenes JPG, PNG o WEBP"); return }
+    if (file.size > 8 * 1024 * 1024) { setError("Máximo 8 MB"); return }
+    setImageFile(file)
+    setError(null)
+    const reader = new FileReader()
+    reader.onload = (e) => setPreview(e.target.result)
+    reader.readAsDataURL(file)
+  }
+
+  const analyze = async () => {
+    if (!imageFile) return
+    setStep("analyzing")
+    setError(null)
+    try {
+      const b64 = await new Promise((res, rej) => {
+        const r = new FileReader()
+        r.onload = (e) => res(e.target.result.split(",")[1])
+        r.onerror = rej
+        r.readAsDataURL(imageFile)
+      })
+      const resp = await fetch("/api/funding/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: b64, mimeType: imageFile.type }),
+      })
+      if (!resp.ok) {
+        const e = await resp.json().catch(() => ({ error: resp.statusText }))
+        throw new Error(e.error || "Error del servidor")
+      }
+      const result = await resp.json()
+      if (!result.transactions?.length) throw new Error("No se detectaron transacciones en la imagen")
+      setData(result)
+      setCompany(result.company || "")
+      // pre-seleccionar solo las válidas
+      setSelected(new Set(result.transactions.map((t, i) => t.valid ? i : -1).filter(i => i !== -1)))
+      setStep("results")
+    } catch (e) {
+      setError(e.message)
+      setStep("upload")
+    }
+  }
+
+  const doImport = async () => {
+    setStep("importing")
+    const comp = company.trim() || data.company || null
+    const rows = data.transactions
+      .filter((_, i) => selected.has(i))
+      .map((t) => {
+        const isRetiro = t.type === "retiro"
+        return {
+          user_id: userId,
+          name: t.description || (isRetiro ? "Retiro" : "Examen"),
+          amount: t.amount,
+          currency: "USD",
+          entry_type: isRetiro ? "retiro" : "gasto",
+          category: "Prop Firms",
+          subcategory: isRetiro ? null : "Examen",
+          company: comp,
+          entry_date: t.date,
+          notes: `OCR · ${t.status}`,
+        }
+      })
+    await supabase.from("accounting_entries").insert(rows)
+    onImported()
+    onClose()
+  }
+
+  const toggle = (i) => setSelected((prev) => {
+    const next = new Set(prev)
+    next.has(i) ? next.delete(i) : next.add(i)
+    return next
+  })
+
+  const selTotal = data?.transactions.filter((_, i) => selected.has(i)).reduce((s, t) => s + t.amount, 0) || 0
+
+  const inputStyle = {
+    background: "var(--inner-bg)", border: "1px solid var(--border-input)",
+    color: "var(--text-1)", padding: "9px 12px", borderRadius: "9px",
+    fontSize: "13px", outline: "none", fontFamily: "Inter, Arial, sans-serif",
+  }
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{ width: "100%", maxWidth: step === "results" ? "640px" : "480px", background: "var(--card-bg)", borderRadius: "20px", border: "1px solid rgba(148,163,184,0.08)", padding: "28px", maxHeight: "90vh", overflowY: "auto" }}>
+
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "22px" }}>
+          <div>
+            <div style={{ fontWeight: "700", fontSize: "16px", color: "var(--text-1)" }}>Importar historial</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>
+              {step === "upload" && "Sube una imagen y Claude extraerá los movimientos"}
+              {step === "analyzing" && "Analizando imagen con IA..."}
+              {step === "results" && `${data?.transactions.length} transacciones detectadas`}
+              {step === "importing" && "Importando movimientos..."}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "18px", padding: "4px" }}>✕</button>
+        </div>
+
+        {/* ── Step: Upload ── */}
+        {(step === "upload") && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {error && (
+              <div style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: "10px", padding: "12px 14px", fontSize: "13px", color: "#f87171" }}>
+                {error}
+              </div>
+            )}
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={(e) => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]) }}
+              onClick={() => document.getElementById("ocr-file-input").click()}
+              style={{
+                border: drag ? "2px dashed #a855f7" : imageFile ? "2px solid #a855f7" : "2px dashed var(--border-input)",
+                borderRadius: "14px", padding: "0", textAlign: "center", cursor: "pointer",
+                background: drag ? "rgba(168,85,247,0.05)" : "transparent", transition: "all 0.15s",
+                overflow: "hidden",
+              }}
+            >
+              <input id="ocr-file-input" type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => handleFile(e.target.files[0])} />
+              {preview ? (
+                <div style={{ position: "relative" }}>
+                  <img src={preview} alt="preview" style={{ width: "100%", maxHeight: "320px", objectFit: "contain", display: "block" }} />
+                  <div style={{ position: "absolute", bottom: "10px", right: "10px", background: "rgba(0,0,0,0.7)", borderRadius: "8px", padding: "4px 10px", fontSize: "11px", color: "#fff" }}>
+                    click para cambiar
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: "48px 24px" }}>
+                  <div style={{ fontSize: "40px", marginBottom: "12px", opacity: 0.4 }}>🤖</div>
+                  <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-muted)" }}>Arrastra o haz clic</div>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "6px", opacity: 0.7 }}>
+                    Historial de pagos, facturación, order history<br/>JPG, PNG · máx. 8 MB
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={analyze}
+              disabled={!imageFile}
+              style={{
+                width: "100%", padding: "12px", borderRadius: "12px", border: "none",
+                background: imageFile ? "linear-gradient(135deg,#a855f7,#7c3aed)" : "rgba(168,85,247,0.3)",
+                color: "#fff", fontWeight: "700", fontSize: "14px",
+                cursor: imageFile ? "pointer" : "not-allowed",
+                boxShadow: imageFile ? "0 4px 14px rgba(168,85,247,0.3)" : "none",
+              }}
+            >
+              🤖 Analizar con IA
+            </button>
+          </div>
+        )}
+
+        {/* ── Step: Analyzing ── */}
+        {step === "analyzing" && (
+          <div style={{ textAlign: "center", padding: "48px 0" }}>
+            <div style={{ fontSize: "48px", marginBottom: "16px", animation: "spin 2s linear infinite" }}>⚙️</div>
+            <div style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-1)" }}>Analizando imagen...</div>
+            <div style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "8px" }}>Claude está leyendo las transacciones</div>
+            <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+          </div>
+        )}
+
+        {/* ── Step: Results ── */}
+        {step === "results" && data && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {/* Empresa detectada (editable) */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px", background: "var(--inner-bg)", borderRadius: "11px" }}>
+              <span style={{ fontSize: "12px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>Empresa:</span>
+              <input
+                list="ocr-firms-list"
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                placeholder="Prop firm detectada"
+                style={{ ...inputStyle, flex: 1 }}
+              />
+              <datalist id="ocr-firms-list">
+                {PROP_FIRMS.map((pf) => <option key={pf} value={pf} />)}
+              </datalist>
+            </div>
+
+            {/* Resumen */}
+            <div style={{ display: "flex", gap: "12px" }}>
+              <div style={{ flex: 1, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.15)", borderRadius: "10px", padding: "10px 14px", textAlign: "center" }}>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Seleccionadas</div>
+                <div style={{ fontSize: "20px", fontWeight: "800", color: "#10b981", marginTop: "4px" }}>{selected.size}</div>
+              </div>
+              <div style={{ flex: 1, background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.15)", borderRadius: "10px", padding: "10px 14px", textAlign: "center" }}>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Total a importar</div>
+                <div style={{ fontSize: "20px", fontWeight: "800", color: "#a855f7", marginTop: "4px" }}>{fmt(selTotal)}</div>
+              </div>
+            </div>
+
+            {/* Tabla de transacciones */}
+            <div style={{ background: "var(--inner-bg)", borderRadius: "12px", overflow: "hidden" }}>
+              {/* Header */}
+              <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 90px 100px 80px", gap: "8px", padding: "8px 14px", borderBottom: "1px solid var(--border-nav)" }}>
+                {["", "Descripción", "Fecha", "Importe", "Estado"].map((h) => (
+                  <span key={h} style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)" }}>{h}</span>
+                ))}
+              </div>
+              {data.transactions.map((t, i) => {
+                const isSel = selected.has(i)
+                const rowColor = !t.valid ? "rgba(248,113,113,0.06)" : isSel ? "transparent" : "rgba(148,163,184,0.03)"
+                return (
+                  <div
+                    key={i}
+                    onClick={() => t.valid && toggle(i)}
+                    style={{
+                      display: "grid", gridTemplateColumns: "36px 1fr 90px 100px 80px",
+                      gap: "8px", padding: "10px 14px", borderBottom: "1px solid var(--border-sub)",
+                      alignItems: "center", cursor: t.valid ? "pointer" : "default",
+                      background: rowColor, opacity: !t.valid ? 0.5 : 1,
+                      transition: "background 0.1s",
+                    }}
+                  >
+                    <div style={{
+                      width: "18px", height: "18px", borderRadius: "5px",
+                      border: `2px solid ${isSel && t.valid ? "#10b981" : "var(--border-input)"}`,
+                      background: isSel && t.valid ? "#10b981" : "transparent",
+                      display: "grid", placeItems: "center", flexShrink: 0,
+                    }}>
+                      {isSel && t.valid && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-1)" }}>{t.description || "—"}</div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px" }}>
+                        {t.type === "retiro" ? "Retiro" : t.type === "examen" ? "Examen" : "Gasto"}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{t.date}</span>
+                    <span style={{ fontSize: "13px", fontWeight: "700", color: t.type === "retiro" ? "#10b981" : "#f87171" }}>
+                      {t.type === "retiro" ? "+" : "-"}{fmt(t.amount)}
+                    </span>
+                    <span style={{
+                      fontSize: "10px", fontWeight: "700", padding: "3px 8px", borderRadius: "5px",
+                      background: t.valid ? "rgba(16,185,129,0.12)" : "rgba(248,113,113,0.12)",
+                      color: t.valid ? "#10b981" : "#f87171",
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    }}>
+                      {t.status}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Volver + Importar */}
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={() => { setStep("upload"); setData(null); setError(null) }}
+                style={{ flex: 0, padding: "11px 18px", borderRadius: "11px", border: "1px solid var(--border-input)", background: "transparent", color: "var(--text-muted)", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}
+              >
+                ← Volver
+              </button>
+              <button
+                onClick={doImport}
+                disabled={selected.size === 0}
+                style={{
+                  flex: 1, padding: "11px", borderRadius: "11px", border: "none",
+                  background: selected.size > 0 ? "linear-gradient(135deg,#10b981,#059669)" : "rgba(16,185,129,0.3)",
+                  color: "#fff", fontWeight: "700", fontSize: "13px",
+                  cursor: selected.size > 0 ? "pointer" : "not-allowed",
+                }}
+              >
+                Importar {selected.size} movimiento{selected.size !== 1 ? "s" : ""} · {fmt(selTotal)}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step: Importing ── */}
+        {step === "importing" && (
+          <div style={{ textAlign: "center", padding: "48px 0" }}>
+            <div style={{ fontSize: "32px", marginBottom: "12px" }}>⏳</div>
+            <div style={{ fontSize: "15px", fontWeight: "600", color: "var(--text-1)" }}>Guardando movimientos...</div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Certificate upload modal (estado propio para evitar desincronización) ──
 function CertModal({ onSave, onClose, uploading }) {
   const [certType, setCertType] = useState("cuenta_aprobada")
@@ -583,6 +883,7 @@ export function AccountingPanel({ userId }) {
   const [showCertModal, setShowCertModal] = useState(false)
   // certForm ya no se usa — el modal CertModal maneja su propio estado
   const [uploadingCert, setUploadingCert] = useState(false)
+  const [showExtraer, setShowExtraer]     = useState(false)
   const [certFilter, setCertFilter] = useState("all") // "all" | "cuenta_aprobada" | "retiro"
 
   useEffect(() => { if (userId) load() }, [userId])
@@ -774,39 +1075,60 @@ export function AccountingPanel({ userId }) {
             Gestiona tus retiradas, costes y movimientos de fondeo
           </p>
         </div>
-        {tab === "certificados" ? (
-          <button
-            onClick={() => setShowCertModal(true)}
-            style={{
-              padding: "11px 20px", borderRadius: "12px", border: "none",
-              background: "linear-gradient(135deg,#38bdf8,#0284c7)",
-              color: "#fff", fontWeight: "700", fontSize: "13px",
-              cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
-              boxShadow: "0 4px 14px rgba(56,189,248,0.3)", marginTop: "8px",
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Subir certificado
-          </button>
-        ) : (
-          <button
-            onClick={openAdd}
-            style={{
-              padding: "11px 20px", borderRadius: "12px", border: "none",
-              background: "linear-gradient(135deg,#10b981,#059669)",
-              color: "#fff", fontWeight: "700", fontSize: "13px",
-              cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
-              boxShadow: "0 4px 14px rgba(16,185,129,0.3)", marginTop: "8px",
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Nuevo movimiento
-          </button>
-        )}
+        <div style={{ display: "flex", gap: "10px", marginTop: "8px", flexWrap: "wrap" }}>
+          {tab === "certificados" ? (
+            <button
+              onClick={() => setShowCertModal(true)}
+              style={{
+                padding: "11px 20px", borderRadius: "12px", border: "none",
+                background: "linear-gradient(135deg,#38bdf8,#0284c7)",
+                color: "#fff", fontWeight: "700", fontSize: "13px",
+                cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
+                boxShadow: "0 4px 14px rgba(56,189,248,0.3)",
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Subir certificado
+            </button>
+          ) : (
+            <>
+              {/* Botón secundario: Importar historial con IA */}
+              <button
+                onClick={() => setShowExtraer(true)}
+                style={{
+                  padding: "11px 18px", borderRadius: "12px",
+                  border: "1.5px solid rgba(168,85,247,0.4)",
+                  background: "rgba(168,85,247,0.08)",
+                  color: "#a855f7", fontWeight: "700", fontSize: "13px",
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: "7px",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(168,85,247,0.15)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(168,85,247,0.08)" }}
+              >
+                🤖 Importar historial
+              </button>
+              {/* Botón primario: Nuevo movimiento */}
+              <button
+                onClick={openAdd}
+                style={{
+                  padding: "11px 20px", borderRadius: "12px", border: "none",
+                  background: "linear-gradient(135deg,#10b981,#059669)",
+                  color: "#fff", fontWeight: "700", fontSize: "13px",
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
+                  boxShadow: "0 4px 14px rgba(16,185,129,0.3)",
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nuevo movimiento
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Stat cards */}
@@ -1196,6 +1518,15 @@ export function AccountingPanel({ userId }) {
           onSave={handleCertUpload}
           onClose={() => setShowCertModal(false)}
           uploading={uploadingCert}
+        />
+      )}
+
+      {/* Modal importar historial con OCR */}
+      {showExtraer && (
+        <ExtraerModal
+          userId={userId}
+          onClose={() => setShowExtraer(false)}
+          onImported={() => { load(); setShowExtraer(false) }}
         />
       )}
     </div>
