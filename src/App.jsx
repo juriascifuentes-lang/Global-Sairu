@@ -26,11 +26,7 @@ import { AccountingPanel } from "./components/AccountingPanel"
 import { BacktestingPanel } from "./components/BacktestingPanel"
 import { ChartReviewPanel } from "./components/ChartReviewPanel"
 import { ConfirmModal } from "./components/ConfirmModal"
-import {
-  RecentTradesWidget,
-  AccountROIWidget,
-  LastWithdrawalsWidget,
-} from "./components/DashboardWidgets"
+import { RecentTradesWidget } from "./components/DashboardWidgets"
 
 const SESSIONS_KEY = "gs_saved_sessions"
 
@@ -921,11 +917,6 @@ function App() {
                 <RecentTradesWidget trades={dashTrades} onNavigate={setActivePage} showPct={showPct} accountSizeMap={accountSizeMap} />
               </div>
 
-              {/* ── ROI + Retiros ── */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
-                <AccountROIWidget accounts={dashAccounts} withdrawals={dashWithdrawals} onNavigate={setActivePage} />
-                <LastWithdrawalsWidget withdrawals={dashWithdrawals} onNavigate={setActivePage} />
-              </div>
             </>
           )
         })()}
