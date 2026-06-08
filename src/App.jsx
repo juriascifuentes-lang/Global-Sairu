@@ -1303,7 +1303,7 @@ function App() {
         })()}
 
         {/* ─── REVIEW: COMPARATIVA ─── */}
-        {activePage === "REVIEW_COMPARATIVE" && (profile.is_admin || (profile.level || 1) >= 3) && (
+        {activePage === "REVIEW_COMPARATIVE" && (
           <ReviewComparative
             trades={trades}
             reviewTrades={reviewTrades}

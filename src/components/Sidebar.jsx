@@ -204,9 +204,8 @@ const navGroups = [
     color: "#38bdf8",
     colorBg: "rgba(56,189,248,0.11)",
     items: [
-      { key: "CHART_REVIEW",       label: "Revisión de Charts", requireAcademia: true },
-      { key: "BACKTESTING",        label: "Backtesting",        requireLevel3: true },
-      { key: "REVIEW_COMPARATIVE", label: "Comparativa",        requireLevel3: true },
+      { key: "CHART_REVIEW", label: "Revisión de Charts", requireAcademia: true },
+      { key: "BACKTESTING",  label: "Backtesting",        requireLevel3: true },
     ],
   },
   {
@@ -215,11 +214,12 @@ const navGroups = [
     color: "#a855f7",
     colorBg: "rgba(168,85,247,0.11)",
     items: [
-      { key: "REVIEW_CALENDAR",   label: "Calendario" },
-      { key: "REVIEW_ACCOUNTS",   label: "Cuentas" },
-      { key: "REVIEW_TRADES",     label: "Trades" },
-      { key: "REVIEW_METRICS",    label: "Métricas" },
-      { key: "REVIEW_STRATEGIES", label: "Estrategias" },
+      { key: "REVIEW_CALENDAR",     label: "Calendario" },
+      { key: "REVIEW_ACCOUNTS",     label: "Cuentas" },
+      { key: "REVIEW_TRADES",       label: "Trades" },
+      { key: "REVIEW_METRICS",      label: "Métricas" },
+      { key: "REVIEW_STRATEGIES",   label: "Estrategias" },
+      { key: "REVIEW_COMPARATIVE",  label: "Comparativa" },
     ],
   },
 ]
