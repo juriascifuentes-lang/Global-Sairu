@@ -326,6 +326,241 @@ function MovimientoModal({ form, setForm, onSave, onClose, saving }) {
   )
 }
 
+// ── Certificate upload modal ─────────────────────────────────────
+const defaultCertForm = {
+  company: "", cert_type: "cuenta_aprobada", amount: "", notes: "", file: null,
+}
+
+function CertModal({ form, setForm, onSave, onClose, uploading }) {
+  const [drag, setDrag] = useState(false)
+
+  const inputStyle = {
+    width: "100%", background: "var(--inner-bg)", border: "1px solid var(--border-input)",
+    color: "var(--text-1)", padding: "11px 14px", borderRadius: "10px",
+    fontSize: "13px", outline: "none", fontFamily: "Inter, Arial, sans-serif", boxSizing: "border-box",
+  }
+
+  const handleFile = (file) => {
+    if (!file) return
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]
+    if (!allowed.includes(file.type)) { alert("Solo se permiten imágenes o PDF"); return }
+    if (file.size > 10 * 1024 * 1024) { alert("Máximo 10 MB"); return }
+    setForm((p) => ({ ...p, file }))
+  }
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div style={{ width: "100%", maxWidth: "460px", background: "var(--card-bg)", borderRadius: "20px", border: "1px solid rgba(148,163,184,0.08)", padding: "28px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "22px" }}>
+          <div>
+            <div style={{ fontWeight: "700", fontSize: "16px", color: "var(--text-1)" }}>Subir certificado</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>Imagen o PDF · máximo 10 MB</div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "18px", padding: "4px", lineHeight: 1 }}>✕</button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Tipo de certificado */}
+          <div>
+            <label style={{ display: "block", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "8px" }}>
+              Tipo de certificado
+            </label>
+            <div style={{ display: "flex", gap: "8px" }}>
+              {[
+                { key: "cuenta_aprobada", label: "✓ Cuenta aprobada", color: "#10b981", bg: "rgba(16,185,129,0.12)" },
+                { key: "retiro", label: "↑ Retiro", color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
+              ].map((t) => (
+                <button key={t.key} type="button"
+                  onClick={() => setForm((p) => ({ ...p, cert_type: t.key }))}
+                  style={{
+                    flex: 1, padding: "10px 12px", borderRadius: "10px",
+                    border: form.cert_type === t.key ? `1.5px solid ${t.color}` : "1px solid var(--border-input)",
+                    background: form.cert_type === t.key ? t.bg : "transparent",
+                    color: form.cert_type === t.key ? t.color : "var(--text-muted)",
+                    fontWeight: form.cert_type === t.key ? "700" : "500",
+                    fontSize: "12px", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
+                  }}
+                >{t.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Prop firm */}
+          <div>
+            <label style={{ display: "block", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "6px" }}>
+              Prop Firm <span style={{ color: "#f87171" }}>*</span>
+            </label>
+            <input list="cert-firms-list" value={form.company}
+              onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))}
+              placeholder="Buscar prop firm" style={inputStyle} autoFocus />
+            <datalist id="cert-firms-list">
+              {PROP_FIRMS.map((pf) => <option key={pf} value={pf} />)}
+            </datalist>
+          </div>
+
+          {/* Importe (solo para retiro) */}
+          {form.cert_type === "retiro" && (
+            <div>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "6px" }}>
+                Importe retirado
+              </label>
+              <input type="number" min="0" step="0.01" value={form.amount}
+                onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
+                placeholder="0.00" style={inputStyle} />
+            </div>
+          )}
+
+          {/* Notas */}
+          <div>
+            <label style={{ display: "block", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "6px" }}>
+              Notas
+            </label>
+            <textarea value={form.notes}
+              onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+              placeholder="Opcional..." rows={2}
+              style={{ ...inputStyle, resize: "vertical", minHeight: "60px" }} />
+          </div>
+
+          {/* Zona de upload */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={(e) => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]) }}
+            onClick={() => document.getElementById("cert-file-input").click()}
+            style={{
+              border: drag ? "2px dashed #10b981" : form.file ? "2px solid #10b981" : "2px dashed var(--border-input)",
+              borderRadius: "12px", padding: "24px 16px", textAlign: "center",
+              cursor: "pointer", transition: "all 0.15s",
+              background: drag ? "rgba(16,185,129,0.05)" : form.file ? "rgba(16,185,129,0.04)" : "transparent",
+            }}
+          >
+            <input id="cert-file-input" type="file" accept="image/*,.pdf"
+              style={{ display: "none" }} onChange={(e) => handleFile(e.target.files[0])} />
+            {form.file ? (
+              <div>
+                <div style={{ fontSize: "28px", marginBottom: "6px" }}>
+                  {form.file.type === "application/pdf" ? "📄" : "🖼️"}
+                </div>
+                <div style={{ fontSize: "13px", fontWeight: "600", color: "#10b981" }}>{form.file.name}</div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px" }}>
+                  {(form.file.size / 1024 / 1024).toFixed(1)} MB · click para cambiar
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: "28px", marginBottom: "8px", opacity: 0.4 }}>⬆</div>
+                <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-muted)" }}>Arrastra o haz clic</div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px", opacity: 0.7 }}>
+                  JPG, PNG, PDF · máx. 10 MB
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Botones */}
+          <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+            <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: "11px", border: "1px solid var(--border-input)", background: "transparent", color: "var(--text-muted)", fontWeight: "600", fontSize: "13px", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif" }}>
+              Cancelar
+            </button>
+            <button onClick={onSave} disabled={uploading || !form.file || !form.company}
+              style={{
+                flex: 1, padding: "11px", borderRadius: "11px", border: "none",
+                background: uploading || !form.file || !form.company ? "rgba(16,185,129,0.4)" : "linear-gradient(135deg,#10b981,#059669)",
+                color: "#fff", fontWeight: "700", fontSize: "13px",
+                cursor: uploading || !form.file || !form.company ? "not-allowed" : "pointer",
+                fontFamily: "Inter, Arial, sans-serif",
+              }}
+            >
+              {uploading ? "Subiendo..." : "Subir certificado"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Certificate gallery ──────────────────────────────────────────
+function CertCard({ cert, onDelete }) {
+  const [hovered, setHovered] = useState(false)
+  const isPdf = cert.file_name?.toLowerCase().endsWith(".pdf")
+  const isAprobada = cert.cert_type === "cuenta_aprobada"
+  const typeColor = isAprobada ? "#10b981" : "#38bdf8"
+  const typeBg = isAprobada ? "rgba(16,185,129,0.12)" : "rgba(56,189,248,0.12)"
+  const typeLabel = isAprobada ? "Cuenta aprobada" : "Retiro"
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: "var(--card-bg)", borderRadius: "14px",
+        border: "1px solid rgba(148,163,184,0.08)", overflow: "hidden",
+        transition: "transform 0.15s, box-shadow 0.15s",
+        transform: hovered ? "translateY(-2px)" : "none",
+        boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.25)" : "none",
+        position: "relative",
+      }}
+    >
+      {/* Thumbnail / preview */}
+      <div
+        onClick={() => window.open(cert.file_url, "_blank")}
+        style={{
+          height: "160px", background: "var(--inner-bg)", display: "flex",
+          alignItems: "center", justifyContent: "center", cursor: "pointer",
+          overflow: "hidden",
+        }}
+      >
+        {isPdf ? (
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "48px", marginBottom: "8px" }}>📄</div>
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", maxWidth: "140px", wordBreak: "break-all", padding: "0 8px" }}>
+              {cert.file_name}
+            </div>
+          </div>
+        ) : (
+          <img src={cert.file_url} alt={cert.company}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        )}
+      </div>
+
+      {/* Info */}
+      <div style={{ padding: "12px 14px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
+          <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-1)" }}>{cert.company}</div>
+          <button
+            onClick={() => onDelete(cert)}
+            style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "2px", lineHeight: 1, fontSize: "12px" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171" }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            </svg>
+          </button>
+        </div>
+        <span style={{ fontSize: "10px", fontWeight: "700", padding: "3px 8px", borderRadius: "5px", background: typeBg, color: typeColor }}>
+          {typeLabel}
+        </span>
+        {cert.amount && (
+          <div style={{ fontSize: "13px", fontWeight: "700", color: "#38bdf8", marginTop: "6px" }}>
+            +{fmt(cert.amount)}
+          </div>
+        )}
+        {cert.notes && (
+          <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>{cert.notes}</div>
+        )}
+        <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "6px", opacity: 0.6 }}>
+          {new Date(cert.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ───────────────────────────────────────────────
 export function AccountingPanel({ userId }) {
   const [entries, setEntries]   = useState([])
@@ -337,7 +572,16 @@ export function AccountingPanel({ userId }) {
   const [filterProp, setFilterProp] = useState("")
   const [filterTipo, setFilterTipo] = useState("")
 
+  // Certificados state
+  const [certs, setCerts]           = useState([])
+  const [loadingCerts, setLoadingCerts] = useState(false)
+  const [showCertModal, setShowCertModal] = useState(false)
+  const [certForm, setCertForm]     = useState(defaultCertForm)
+  const [uploadingCert, setUploadingCert] = useState(false)
+  const [certFilter, setCertFilter] = useState("all") // "all" | "cuenta_aprobada" | "retiro"
+
   useEffect(() => { if (userId) load() }, [userId])
+  useEffect(() => { if (userId && tab === "certificados") loadCerts() }, [userId, tab])
 
   async function load() {
     setLoading(true)
@@ -402,6 +646,62 @@ export function AccountingPanel({ userId }) {
     await supabase.from("accounting_entries").delete().eq("id", e.id)
     setEntries((prev) => prev.filter((x) => x.id !== e.id))
   }
+
+  // ── Certificados ───────────────────────────────────────────────
+  async function loadCerts() {
+    setLoadingCerts(true)
+    const { data } = await supabase
+      .from("funding_certificates")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+    setCerts(data || [])
+    setLoadingCerts(false)
+  }
+
+  async function handleCertUpload() {
+    if (!certForm.file || !certForm.company) return
+    setUploadingCert(true)
+    const ext = certForm.file.name.split(".").pop()
+    const path = `${userId}/${Date.now()}.${ext}`
+    const { error: upErr } = await supabase.storage
+      .from("funding-certificates")
+      .upload(path, certForm.file, { contentType: certForm.file.type, upsert: false })
+    if (upErr) { alert("Error al subir archivo: " + upErr.message); setUploadingCert(false); return }
+    const { data: { publicUrl } } = supabase.storage
+      .from("funding-certificates")
+      .getPublicUrl(path)
+    await supabase.from("funding_certificates").insert({
+      user_id: userId,
+      company: certForm.company.trim(),
+      cert_type: certForm.cert_type,
+      file_url: publicUrl,
+      file_name: certForm.file.name,
+      amount: certForm.amount ? parseFloat(certForm.amount) : null,
+      notes: certForm.notes.trim() || null,
+    })
+    await loadCerts()
+    setShowCertModal(false)
+    setCertForm(defaultCertForm)
+    setUploadingCert(false)
+  }
+
+  async function handleCertDelete(cert) {
+    if (!window.confirm("¿Eliminar este certificado?")) return
+    // Extract storage path from URL
+    const url = new URL(cert.file_url)
+    const storagePath = url.pathname.split("/object/public/funding-certificates/")[1]
+    if (storagePath) {
+      await supabase.storage.from("funding-certificates").remove([storagePath])
+    }
+    await supabase.from("funding_certificates").delete().eq("id", cert.id)
+    setCerts((prev) => prev.filter((c) => c.id !== cert.id))
+  }
+
+  const filteredCerts = useMemo(() => {
+    if (certFilter === "all") return certs
+    return certs.filter((c) => c.cert_type === certFilter)
+  }, [certs, certFilter])
 
   // ── Stats ──────────────────────────────────────────────────────
   const totalRetiros  = entries.filter((e) => getEntryTipo(e) === "retiro").reduce((s, e) => s + Number(e.amount), 0)
@@ -470,21 +770,39 @@ export function AccountingPanel({ userId }) {
             Gestiona tus retiradas, costes y movimientos de fondeo
           </p>
         </div>
-        <button
-          onClick={openAdd}
-          style={{
-            padding: "11px 20px", borderRadius: "12px", border: "none",
-            background: "linear-gradient(135deg,#10b981,#059669)",
-            color: "#fff", fontWeight: "700", fontSize: "13px",
-            cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
-            boxShadow: "0 4px 14px rgba(16,185,129,0.3)", marginTop: "8px",
-          }}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Nuevo movimiento
-        </button>
+        {tab === "certificados" ? (
+          <button
+            onClick={() => { setCertForm(defaultCertForm); setShowCertModal(true) }}
+            style={{
+              padding: "11px 20px", borderRadius: "12px", border: "none",
+              background: "linear-gradient(135deg,#38bdf8,#0284c7)",
+              color: "#fff", fontWeight: "700", fontSize: "13px",
+              cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
+              boxShadow: "0 4px 14px rgba(56,189,248,0.3)", marginTop: "8px",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Subir certificado
+          </button>
+        ) : (
+          <button
+            onClick={openAdd}
+            style={{
+              padding: "11px 20px", borderRadius: "12px", border: "none",
+              background: "linear-gradient(135deg,#10b981,#059669)",
+              color: "#fff", fontWeight: "700", fontSize: "13px",
+              cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
+              boxShadow: "0 4px 14px rgba(16,185,129,0.3)", marginTop: "8px",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Nuevo movimiento
+          </button>
+        )}
       </div>
 
       {/* Stat cards */}
@@ -523,6 +841,7 @@ export function AccountingPanel({ userId }) {
       <div style={{ display: "flex", gap: "4px", background: "var(--inner-bg)", borderRadius: "14px", padding: "4px", width: "fit-content" }}>
         <TabBtn id="resumen" label="Resumen" />
         <TabBtn id="empresas" label="Empresas" />
+        <TabBtn id="certificados" label="Certificados" />
       </div>
 
       {loading ? (
@@ -739,7 +1058,7 @@ export function AccountingPanel({ userId }) {
           </div>
         </div>
 
-      ) : (
+      ) : tab === "empresas" ? (
         /* ── Tab Empresas ── */
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "14px" }}>
           {propRanking.length === 0 ? (
@@ -784,9 +1103,79 @@ export function AccountingPanel({ userId }) {
             </div>
           ))}
         </div>
+
+      ) : (
+        /* ── Tab Certificados ── */
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Filtros tipo */}
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            {[
+              { key: "all", label: "Todos" },
+              { key: "cuenta_aprobada", label: "✓ Cuentas aprobadas", color: "#10b981" },
+              { key: "retiro", label: "↑ Retiros", color: "#38bdf8" },
+            ].map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setCertFilter(f.key)}
+                style={{
+                  padding: "7px 16px", borderRadius: "10px", border: "none",
+                  background: certFilter === f.key ? (f.color ? `${f.color}22` : "var(--card-bg)") : "var(--inner-bg)",
+                  color: certFilter === f.key ? (f.color || "var(--text-1)") : "var(--text-muted)",
+                  fontWeight: certFilter === f.key ? "700" : "500", fontSize: "12px",
+                  cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
+                  border: certFilter === f.key && f.color ? `1px solid ${f.color}44` : "1px solid transparent",
+                  transition: "all 0.12s",
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+            <span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--text-muted)" }}>
+              {filteredCerts.length} certificado{filteredCerts.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {loadingCerts ? (
+            <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)", fontSize: "14px" }}>Cargando certificados...</div>
+          ) : filteredCerts.length === 0 ? (
+            /* Estado vacío */
+            <div
+              style={{
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                padding: "80px 40px", background: "var(--card-bg)", borderRadius: "18px",
+                border: "2px dashed rgba(148,163,184,0.12)", textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: "48px", marginBottom: "16px", opacity: 0.3 }}>🏆</div>
+              <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-1)", marginBottom: "8px" }}>
+                Sin certificados
+              </div>
+              <div style={{ fontSize: "13px", color: "var(--text-muted)", maxWidth: "320px", marginBottom: "20px" }}>
+                Sube tus certificados de cuentas aprobadas y retiros para tener tu historial completo
+              </div>
+              <button
+                onClick={() => { setCertForm(defaultCertForm); setShowCertModal(true) }}
+                style={{
+                  padding: "10px 20px", borderRadius: "11px", border: "none",
+                  background: "linear-gradient(135deg,#38bdf8,#0284c7)",
+                  color: "#fff", fontWeight: "700", fontSize: "13px", cursor: "pointer",
+                }}
+              >
+                Subir primer certificado
+              </button>
+            </div>
+          ) : (
+            /* Grid de certificados */
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "14px" }}>
+              {filteredCerts.map((cert) => (
+                <CertCard key={cert.id} cert={cert} onDelete={handleCertDelete} />
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Modal */}
+      {/* Modal movimiento */}
       {showModal && (
         <MovimientoModal
           form={form}
@@ -794,6 +1183,17 @@ export function AccountingPanel({ userId }) {
           onSave={handleSave}
           onClose={() => setShowModal(false)}
           saving={saving}
+        />
+      )}
+
+      {/* Modal certificado */}
+      {showCertModal && (
+        <CertModal
+          form={certForm}
+          setForm={setCertForm}
+          onSave={handleCertUpload}
+          onClose={() => setShowCertModal(false)}
+          uploading={uploadingCert}
         />
       )}
     </div>
