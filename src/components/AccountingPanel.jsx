@@ -424,6 +424,31 @@ function ExtraerModal({ userId, onClose, onImported }) {
       setStep("results")
       return
     }
+
+    // Auto-guardar imagen como certificado de retiro si hay retiros importados
+    const hasRetiros = rows.some((r) => r.entry_type === "retiro")
+    if (hasRetiros && imageFile) {
+      try {
+        const ext = imageFile.name.split(".").pop()
+        const path = `${userId}/${Date.now()}-ocr.${ext}`
+        const { error: upErr } = await supabase.storage
+          .from("funding-certificates")
+          .upload(path, imageFile, { contentType: imageFile.type, upsert: false })
+        if (!upErr) {
+          const { data: { publicUrl } } = supabase.storage.from("funding-certificates").getPublicUrl(path)
+          await supabase.from("funding_certificates").insert({
+            user_id: userId,
+            company: comp,
+            cert_type: "retiro",
+            file_url: publicUrl,
+            file_name: imageFile.name,
+            amount: null,
+            notes: "Guardado automáticamente desde importación OCR",
+          })
+        }
+      } catch (_) { /* no bloquear si falla el cert */ }
+    }
+
     onImported()
     onClose()
   }
@@ -915,7 +940,7 @@ function CertModal({ onSave, onClose, uploading }) {
 }
 
 // ── Certificate gallery ──────────────────────────────────────────
-function CertCard({ cert, onDelete }) {
+function CertCard({ cert, onDelete, selected, onToggle }) {
   const [hovered, setHovered] = useState(false)
   const isPdf = cert.file_name?.toLowerCase().endsWith(".pdf")
   const isAprobada = cert.cert_type === "cuenta_aprobada"
@@ -929,13 +954,30 @@ function CertCard({ cert, onDelete }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         background: "var(--card-bg)", borderRadius: "14px",
-        border: "1px solid rgba(148,163,184,0.08)", overflow: "hidden",
+        border: selected ? "1.5px solid #10b981" : "1px solid rgba(148,163,184,0.08)",
+        overflow: "hidden",
         transition: "transform 0.15s, box-shadow 0.15s",
         transform: hovered ? "translateY(-2px)" : "none",
-        boxShadow: hovered ? "0 8px 24px rgba(0,0,0,0.25)" : "none",
+        boxShadow: selected ? "0 0 0 3px rgba(16,185,129,0.15)" : hovered ? "0 8px 24px rgba(0,0,0,0.25)" : "none",
         position: "relative",
       }}
     >
+      {/* Checkbox overlay */}
+      <div
+        onClick={(e) => { e.stopPropagation(); onToggle(cert.id) }}
+        style={{
+          position: "absolute", top: "8px", left: "8px", zIndex: 10,
+          width: "20px", height: "20px", borderRadius: "6px",
+          border: `2px solid ${selected ? "#10b981" : "rgba(255,255,255,0.5)"}`,
+          background: selected ? "#10b981" : "rgba(0,0,0,0.45)",
+          display: "grid", placeItems: "center", cursor: "pointer",
+          opacity: selected || hovered ? 1 : 0,
+          transition: "opacity 0.15s",
+          backdropFilter: "blur(4px)",
+        }}
+      >
+        {selected && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+      </div>
       {/* Thumbnail / preview */}
       <div
         onClick={() => window.open(cert.file_url, "_blank")}
@@ -1016,6 +1058,8 @@ export function AccountingPanel({ userId }) {
   const [uploadingCert, setUploadingCert] = useState(false)
   const [showExtraer, setShowExtraer]     = useState(false)
   const [certFilter, setCertFilter] = useState("all") // "all" | "cuenta_aprobada" | "retiro"
+  const [selCerts, setSelCerts] = useState(new Set())
+  const toggleSelCert = (id) => setSelCerts((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   useEffect(() => { if (userId) load() }, [userId])
   useEffect(() => { if (userId && tab === "certificados") loadCerts() }, [userId, tab])
@@ -1139,14 +1183,25 @@ export function AccountingPanel({ userId }) {
 
   async function handleCertDelete(cert) {
     if (!window.confirm("¿Eliminar este certificado?")) return
-    // Extract storage path from URL
     const url = new URL(cert.file_url)
     const storagePath = url.pathname.split("/object/public/funding-certificates/")[1]
-    if (storagePath) {
-      await supabase.storage.from("funding-certificates").remove([storagePath])
-    }
+    if (storagePath) await supabase.storage.from("funding-certificates").remove([storagePath])
     await supabase.from("funding_certificates").delete().eq("id", cert.id)
     setCerts((prev) => prev.filter((c) => c.id !== cert.id))
+    setSelCerts((p) => { const n = new Set(p); n.delete(cert.id); return n })
+  }
+
+  async function handleBulkCertDelete() {
+    if (selCerts.size === 0) return
+    if (!window.confirm(`¿Eliminar ${selCerts.size} certificado${selCerts.size !== 1 ? "s" : ""}? Esta acción no se puede deshacer.`)) return
+    const toDelete = certs.filter((c) => selCerts.has(c.id))
+    const paths = toDelete
+      .map((c) => { try { return new URL(c.file_url).pathname.split("/object/public/funding-certificates/")[1] } catch { return null } })
+      .filter(Boolean)
+    if (paths.length) await supabase.storage.from("funding-certificates").remove(paths)
+    await supabase.from("funding_certificates").delete().in("id", [...selCerts])
+    setCerts((prev) => prev.filter((c) => !selCerts.has(c.id)))
+    setSelCerts(new Set())
   }
 
   const filteredCerts = useMemo(() => {
@@ -1634,7 +1689,7 @@ export function AccountingPanel({ userId }) {
         /* ── Tab Certificados ── */
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           {/* Filtros tipo */}
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
             {[
               { key: "all", label: "Todos" },
               { key: "cuenta_aprobada", label: "✓ Cuentas aprobadas", color: "#10b981" },
@@ -1656,9 +1711,27 @@ export function AccountingPanel({ userId }) {
                 {f.label}
               </button>
             ))}
-            <span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--text-muted)" }}>
-              {filteredCerts.length} certificado{filteredCerts.length !== 1 ? "s" : ""}
-            </span>
+            <div style={{ marginLeft: "auto", display: "flex", gap: "8px", alignItems: "center" }}>
+              {selCerts.size > 0 && (
+                <button
+                  onClick={handleBulkCertDelete}
+                  style={{
+                    padding: "7px 14px", borderRadius: "10px", border: "none",
+                    background: "rgba(248,113,113,0.15)", color: "#f87171",
+                    fontWeight: "700", fontSize: "12px", cursor: "pointer",
+                    fontFamily: "Inter, Arial, sans-serif", display: "flex", alignItems: "center", gap: "5px",
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  </svg>
+                  Eliminar {selCerts.size}
+                </button>
+              )}
+              <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                {filteredCerts.length} certificado{filteredCerts.length !== 1 ? "s" : ""}
+              </span>
+            </div>
           </div>
 
           {loadingCerts ? (
@@ -1694,7 +1767,10 @@ export function AccountingPanel({ userId }) {
             /* Grid de certificados */
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "14px" }}>
               {filteredCerts.map((cert) => (
-                <CertCard key={cert.id} cert={cert} onDelete={handleCertDelete} />
+                <CertCard
+                  key={cert.id} cert={cert} onDelete={handleCertDelete}
+                  selected={selCerts.has(cert.id)} onToggle={toggleSelCert}
+                />
               ))}
             </div>
           )}
@@ -1726,7 +1802,7 @@ export function AccountingPanel({ userId }) {
         <ExtraerModal
           userId={userId}
           onClose={() => setShowExtraer(false)}
-          onImported={() => { load(); setShowExtraer(false) }}
+          onImported={() => { load(); loadCerts(); setShowExtraer(false) }}
         />
       )}
     </div>
