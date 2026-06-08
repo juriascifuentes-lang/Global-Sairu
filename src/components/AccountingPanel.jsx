@@ -957,12 +957,17 @@ function CertCard({ cert, onDelete }) {
 export function AccountingPanel({ userId }) {
   const [entries, setEntries]   = useState([])
   const [loading, setLoading]   = useState(true)
-  const [tab, setTab]           = useState("resumen")
+  const [tab, setTab]           = useState(() => {
+    const saved = localStorage.getItem("funding_tab")
+    return ["resumen", "empresas", "certificados"].includes(saved) ? saved : "resumen"
+  })
+  const changeTab = (t) => { setTab(t); localStorage.setItem("funding_tab", t) }
   const [showModal, setShowModal] = useState(false)
   const [form, setForm]         = useState(defaultForm)
   const [saving, setSaving]     = useState(false)
   const [filterProp, setFilterProp] = useState("")
   const [filterTipo, setFilterTipo] = useState("")
+  const [selEntries, setSelEntries] = useState(new Set())
 
   // Certificados state
   const [certs, setCerts]           = useState([])
@@ -1037,7 +1042,21 @@ export function AccountingPanel({ userId }) {
     if (!window.confirm("¿Eliminar este movimiento?")) return
     await supabase.from("accounting_entries").delete().eq("id", e.id)
     setEntries((prev) => prev.filter((x) => x.id !== e.id))
+    setSelEntries((prev) => { const n = new Set(prev); n.delete(e.id); return n })
   }
+
+  async function handleBulkDelete() {
+    if (selEntries.size === 0) return
+    if (!window.confirm(`¿Eliminar ${selEntries.size} movimiento${selEntries.size !== 1 ? "s" : ""}? Esta acción no se puede deshacer.`)) return
+    const ids = [...selEntries]
+    await supabase.from("accounting_entries").delete().in("id", ids)
+    setEntries((prev) => prev.filter((x) => !selEntries.has(x.id)))
+    setSelEntries(new Set())
+  }
+
+  const toggleSelEntry = (id) => setSelEntries((prev) => {
+    const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n
+  })
 
   // ── Certificados ───────────────────────────────────────────────
   async function loadCerts() {
@@ -1132,7 +1151,7 @@ export function AccountingPanel({ userId }) {
   // ── Tab selector ──────────────────────────────────────────────
   const TabBtn = ({ id, label }) => (
     <button
-      onClick={() => setTab(id)}
+      onClick={() => changeTab(id)}
       style={{
         padding: "8px 20px", borderRadius: "10px", border: "none",
         background: tab === id ? "var(--card-bg)" : "transparent",
@@ -1342,7 +1361,23 @@ export function AccountingPanel({ userId }) {
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "var(--text-1)" }}>Movimientos</h3>
                 <p style={{ margin: "3px 0 0", fontSize: "12px", color: "var(--text-muted)" }}>Listado de retiradas y costes</p>
               </div>
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                {selEntries.size > 0 && (
+                  <button
+                    onClick={handleBulkDelete}
+                    style={{
+                      padding: "8px 14px", borderRadius: "10px", border: "none",
+                      background: "rgba(248,113,113,0.15)", color: "#f87171",
+                      fontWeight: "700", fontSize: "12px", cursor: "pointer",
+                      fontFamily: "Inter, Arial, sans-serif", display: "flex", alignItems: "center", gap: "6px",
+                    }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    </svg>
+                    Eliminar {selEntries.size}
+                  </button>
+                )}
                 <select
                   value={filterProp}
                   onChange={(e) => setFilterProp(e.target.value)}
@@ -1381,11 +1416,35 @@ export function AccountingPanel({ userId }) {
             ) : (
               <>
                 {/* Tabla header */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 120px 110px 60px", gap: "8px", padding: "10px 24px", borderTop: "1px solid var(--border-nav)", borderBottom: "1px solid var(--border-nav)", background: "rgba(148,163,184,0.03)" }}>
-                  {["Movimiento", "Tipo", "Fecha", "Importe", ""].map((h) => (
-                    <span key={h} style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>{h}</span>
-                  ))}
-                </div>
+                {(() => {
+                  const allSel = filtered.length > 0 && filtered.every((e) => selEntries.has(e.id))
+                  const someSel = !allSel && filtered.some((e) => selEntries.has(e.id))
+                  return (
+                    <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 110px 120px 110px 60px", gap: "8px", padding: "10px 24px", borderTop: "1px solid var(--border-nav)", borderBottom: "1px solid var(--border-nav)", background: "rgba(148,163,184,0.03)", alignItems: "center" }}>
+                      {/* Checkbox seleccionar todo */}
+                      <div
+                        onClick={() => {
+                          if (allSel) {
+                            setSelEntries((prev) => { const n = new Set(prev); filtered.forEach((e) => n.delete(e.id)); return n })
+                          } else {
+                            setSelEntries((prev) => { const n = new Set(prev); filtered.forEach((e) => n.add(e.id)); return n })
+                          }
+                        }}
+                        style={{
+                          width: "16px", height: "16px", borderRadius: "4px", cursor: "pointer",
+                          border: `2px solid ${allSel ? "#10b981" : someSel ? "#10b981" : "var(--border-input)"}`,
+                          background: allSel ? "#10b981" : someSel ? "rgba(16,185,129,0.3)" : "transparent",
+                          display: "grid", placeItems: "center",
+                        }}
+                      >
+                        {(allSel || someSel) && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                      </div>
+                      {["Movimiento", "Tipo", "Fecha", "Importe", ""].map((h) => (
+                        <span key={h} style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--text-muted)" }}>{h}</span>
+                      ))}
+                    </div>
+                  )
+                })()}
 
                 {/* Filas */}
                 {filtered.map((entry) => {
@@ -1395,17 +1454,31 @@ export function AccountingPanel({ userId }) {
                   const isR = tipo === "retiro"
                   const amountColor = isR ? "#10b981" : "#f87171"
                   const amountLabel = isR ? `+${fmt(amount)}` : `-${fmt(amount)}`
+                  const isSel = selEntries.has(entry.id)
                   return (
                     <div
                       key={entry.id}
                       style={{
-                        display: "grid", gridTemplateColumns: "1fr 110px 120px 110px 60px",
+                        display: "grid", gridTemplateColumns: "36px 1fr 110px 120px 110px 60px",
                         gap: "8px", padding: "13px 24px", borderBottom: "1px solid var(--border-sub)",
                         alignItems: "center", transition: "background 0.12s",
+                        background: isSel ? "rgba(16,185,129,0.05)" : "transparent",
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--nav-hover)" }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
+                      onMouseEnter={(e) => { if (!isSel) e.currentTarget.style.background = "var(--nav-hover)" }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = isSel ? "rgba(16,185,129,0.05)" : "transparent" }}
                     >
+                      {/* Checkbox */}
+                      <div
+                        onClick={() => toggleSelEntry(entry.id)}
+                        style={{
+                          width: "16px", height: "16px", borderRadius: "4px", cursor: "pointer",
+                          border: `2px solid ${isSel ? "#10b981" : "var(--border-input)"}`,
+                          background: isSel ? "#10b981" : "transparent",
+                          display: "grid", placeItems: "center", flexShrink: 0,
+                        }}
+                      >
+                        {isSel && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                      </div>
                       <div>
                         <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-1)" }}>
                           {entry.company || entry.name || entry.category}
