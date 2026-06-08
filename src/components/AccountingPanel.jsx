@@ -382,8 +382,20 @@ function ExtraerModal({ userId, onClose, onImported }) {
     }
   }
 
+  // Corrige fechas imposibles que devuelve el OCR (ej: "2024-02-30" → "2024-02-29")
+  const safeDate = (raw) => {
+    if (!raw) return new Date().toISOString().slice(0, 10)
+    const parts = raw.split("-").map(Number)
+    if (parts.length !== 3 || parts.some(isNaN)) return new Date().toISOString().slice(0, 10)
+    const [y, m, d] = parts
+    const lastDay = new Date(y, m, 0).getDate() // día máximo del mes
+    const clampedDay = Math.min(d, lastDay)
+    return `${y}-${String(m).padStart(2, "0")}-${String(clampedDay).padStart(2, "0")}`
+  }
+
   const doImport = async () => {
     setStep("importing")
+    setError(null)
     const comp = company.trim() || data.company || null
     const rows = data.transactions
       .filter((_, i) => selected.has(i))
@@ -392,17 +404,23 @@ function ExtraerModal({ userId, onClose, onImported }) {
         return {
           user_id: userId,
           name: t.description || (isRetiro ? "Retiro" : "Examen"),
-          amount: t.amount,
+          amount: Number(t.amount),
           currency: "USD",
           entry_type: isRetiro ? "retiro" : "gasto",
           category: "Prop Firms",
           subcategory: isRetiro ? null : "Examen",
           company: comp,
-          entry_date: t.date,
+          entry_date: safeDate(t.date),
           notes: `OCR · ${t.status}`,
         }
       })
-    await supabase.from("accounting_entries").insert(rows)
+
+    const { error: dbErr } = await supabase.from("accounting_entries").insert(rows)
+    if (dbErr) {
+      setError(`Error al guardar: ${dbErr.message}`)
+      setStep("results")
+      return
+    }
     onImported()
     onClose()
   }
@@ -509,6 +527,12 @@ function ExtraerModal({ userId, onClose, onImported }) {
         {/* ── Step: Results ── */}
         {step === "results" && data && (
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {/* Error de importación */}
+            {error && (
+              <div style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: "10px", padding: "12px 14px", fontSize: "13px", color: "#f87171" }}>
+                {error}
+              </div>
+            )}
             {/* Empresa detectada (editable) */}
             <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px", background: "var(--inner-bg)", borderRadius: "11px" }}>
               <span style={{ fontSize: "12px", color: "var(--text-muted)", whiteSpace: "nowrap" }}>Empresa:</span>
