@@ -336,6 +336,7 @@ function ExtraerModal({ userId, onClose, onImported }) {
   const [selected, setSelected] = useState(new Set())
   const [company, setCompany]   = useState("")
   const [error, setError]       = useState(null)
+  const [typeOverrides, setTypeOverrides] = useState({}) // { [index]: "retiro"|"examen"|"gasto" }
 
   const handleFile = (file) => {
     if (!file) return
@@ -398,16 +399,19 @@ function ExtraerModal({ userId, onClose, onImported }) {
     setError(null)
     const comp = company.trim() || data.company || null
     const rows = data.transactions
-      .filter((_, i) => selected.has(i))
-      .map((t) => {
-        const isRetiro = t.type === "retiro"
+      .map((t, i) => ({ t, i }))
+      .filter(({ i }) => selected.has(i))
+      .map(({ t, i }) => {
+        const effectiveType = getRowType(i, t)
+        const isRetiro = effectiveType === "retiro"
+        const isExamen = effectiveType === "examen"
         return {
           user_id: userId,
-          name: t.description || (isRetiro ? "Retiro" : "Examen"),
+          name: t.description || (isRetiro ? "Retiro" : isExamen ? "Examen" : "Gasto"),
           amount: Number(t.amount),
           entry_type: isRetiro ? "retiro" : "gasto",
           category: "Prop Firms",
-          subcategory: isRetiro ? null : "Examen",
+          subcategory: isExamen ? "Examen" : null,
           company: comp,
           entry_date: safeDate(t.date),
           notes: `OCR · ${t.status}`,
@@ -429,6 +433,9 @@ function ExtraerModal({ userId, onClose, onImported }) {
     next.has(i) ? next.delete(i) : next.add(i)
     return next
   })
+
+  const setRowType = (i, type) => setTypeOverrides((prev) => ({ ...prev, [i]: type }))
+  const getRowType = (i, t) => typeOverrides[i] ?? t.type
 
   const selTotal = data?.transactions.filter((_, i) => selected.has(i)).reduce((s, t) => s + t.amount, 0) || 0
 
@@ -562,46 +569,78 @@ function ExtraerModal({ userId, onClose, onImported }) {
             {/* Tabla de transacciones */}
             <div style={{ background: "var(--inner-bg)", borderRadius: "12px", overflow: "hidden" }}>
               {/* Header */}
-              <div style={{ display: "grid", gridTemplateColumns: "36px 1fr 90px 100px 80px", gap: "8px", padding: "8px 14px", borderBottom: "1px solid var(--border-nav)" }}>
-                {["", "Descripción", "Fecha", "Importe", "Estado"].map((h) => (
-                  <span key={h} style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)" }}>{h}</span>
+              <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 82px 90px 78px", gap: "6px", padding: "8px 12px", borderBottom: "1px solid var(--border-nav)" }}>
+                {["", "Descripción / Tipo", "Fecha", "Importe", "Estado"].map((h) => (
+                  <span key={h} style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)" }}>{h}</span>
                 ))}
               </div>
               {data.transactions.map((t, i) => {
                 const isSel = selected.has(i)
+                const rowType = getRowType(i, t)
                 const rowColor = !t.valid ? "rgba(248,113,113,0.06)" : isSel ? "transparent" : "rgba(148,163,184,0.03)"
+                const amtColor = rowType === "retiro" ? "#10b981" : "#f87171"
+                const TYPE_BTNS = [
+                  { key: "retiro", label: "↑ Retiro",  color: "#10b981", bg: "rgba(16,185,129,0.13)" },
+                  { key: "examen", label: "✕ Examen",  color: "#f87171", bg: "rgba(248,113,113,0.13)" },
+                  { key: "gasto",  label: "$ Gasto",   color: "#94a3b8", bg: "rgba(148,163,184,0.13)" },
+                ]
                 return (
-                  <div
-                    key={i}
-                    onClick={() => t.valid && toggle(i)}
-                    style={{
-                      display: "grid", gridTemplateColumns: "36px 1fr 90px 100px 80px",
-                      gap: "8px", padding: "10px 14px", borderBottom: "1px solid var(--border-sub)",
-                      alignItems: "center", cursor: t.valid ? "pointer" : "default",
-                      background: rowColor, opacity: !t.valid ? 0.5 : 1,
-                      transition: "background 0.1s",
-                    }}
-                  >
-                    <div style={{
-                      width: "18px", height: "18px", borderRadius: "5px",
-                      border: `2px solid ${isSel && t.valid ? "#10b981" : "var(--border-input)"}`,
-                      background: isSel && t.valid ? "#10b981" : "transparent",
-                      display: "grid", placeItems: "center", flexShrink: 0,
-                    }}>
+                  <div key={i} style={{
+                    display: "grid", gridTemplateColumns: "32px 1fr 82px 90px 78px",
+                    gap: "6px", padding: "10px 12px", borderBottom: "1px solid var(--border-sub)",
+                    alignItems: "center", background: rowColor,
+                    opacity: !t.valid ? 0.5 : 1,
+                  }}>
+                    {/* Checkbox */}
+                    <div
+                      onClick={() => t.valid && toggle(i)}
+                      style={{
+                        width: "18px", height: "18px", borderRadius: "5px",
+                        border: `2px solid ${isSel && t.valid ? "#10b981" : "var(--border-input)"}`,
+                        background: isSel && t.valid ? "#10b981" : "transparent",
+                        display: "grid", placeItems: "center", flexShrink: 0,
+                        cursor: t.valid ? "pointer" : "default",
+                      }}
+                    >
                       {isSel && t.valid && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                     </div>
+
+                    {/* Descripción + selector de tipo */}
                     <div>
-                      <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-1)" }}>{t.description || "—"}</div>
-                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "1px" }}>
-                        {t.type === "retiro" ? "Retiro" : t.type === "examen" ? "Examen" : "Gasto"}
-                      </div>
+                      <div
+                        onClick={() => t.valid && toggle(i)}
+                        style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-1)", cursor: t.valid ? "pointer" : "default", marginBottom: "5px" }}
+                      >{t.description || "—"}</div>
+                      {/* Botones de tipo (solo si la fila es válida) */}
+                      {t.valid && (
+                        <div style={{ display: "flex", gap: "4px" }}>
+                          {TYPE_BTNS.map((tb) => (
+                            <button
+                              key={tb.key}
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setRowType(i, tb.key) }}
+                              style={{
+                                padding: "2px 7px", borderRadius: "5px", border: "none",
+                                background: rowType === tb.key ? tb.bg : "transparent",
+                                color: rowType === tb.key ? tb.color : "var(--text-muted)",
+                                fontWeight: rowType === tb.key ? "700" : "400",
+                                fontSize: "10px", cursor: "pointer",
+                                outline: rowType === tb.key ? `1px solid ${tb.color}` : "1px solid var(--border-sub)",
+                                fontFamily: "Inter, Arial, sans-serif",
+                                transition: "all 0.1s",
+                              }}
+                            >{tb.label}</button>
+                          ))}
+                        </div>
+                      )}
                     </div>
+
                     <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>{t.date}</span>
-                    <span style={{ fontSize: "13px", fontWeight: "700", color: t.type === "retiro" ? "#10b981" : "#f87171" }}>
-                      {t.type === "retiro" ? "+" : "-"}{fmt(t.amount)}
+                    <span style={{ fontSize: "13px", fontWeight: "700", color: amtColor }}>
+                      {rowType === "retiro" ? "+" : "-"}{fmt(t.amount)}
                     </span>
                     <span style={{
-                      fontSize: "10px", fontWeight: "700", padding: "3px 8px", borderRadius: "5px",
+                      fontSize: "10px", fontWeight: "700", padding: "3px 7px", borderRadius: "5px",
                       background: t.valid ? "rgba(16,185,129,0.12)" : "rgba(248,113,113,0.12)",
                       color: t.valid ? "#10b981" : "#f87171",
                       whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
@@ -616,7 +655,7 @@ function ExtraerModal({ userId, onClose, onImported }) {
             {/* Volver + Importar */}
             <div style={{ display: "flex", gap: "10px" }}>
               <button
-                onClick={() => { setStep("upload"); setData(null); setError(null) }}
+                onClick={() => { setStep("upload"); setData(null); setError(null); setTypeOverrides({}) }}
                 style={{ flex: 0, padding: "11px 18px", borderRadius: "11px", border: "1px solid var(--border-input)", background: "transparent", color: "var(--text-muted)", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}
               >
                 ← Volver
@@ -651,158 +690,183 @@ function ExtraerModal({ userId, onClose, onImported }) {
 
 // ── Certificate upload modal (estado propio para evitar desincronización) ──
 function CertModal({ onSave, onClose, uploading }) {
-  const [certType, setCertType] = useState("cuenta_aprobada")
+  // items: [{ id, file, preview, cert_type }]
+  const [items, setItems]       = useState([])
   const [company, setCompany]   = useState("")
-  const [amount, setAmount]     = useState("")
-  const [notes, setNotes]       = useState("")
-  const [file, setFile]         = useState(null)
   const [drag, setDrag]         = useState(false)
 
+  const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]
+
+  const addFiles = (fileList) => {
+    const valid = Array.from(fileList).filter((f) => {
+      if (!ALLOWED.includes(f.type)) return false
+      if (f.size > 10 * 1024 * 1024) return false
+      return true
+    })
+    valid.forEach((f) => {
+      const id = `${Date.now()}-${Math.random()}`
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setItems((prev) => [...prev, { id, file: f, preview: e.target.result, cert_type: "cuenta_aprobada" }])
+      }
+      reader.readAsDataURL(f)
+    })
+  }
+
+  const removeItem = (id) => setItems((prev) => prev.filter((x) => x.id !== id))
+  const setType = (id, type) => setItems((prev) => prev.map((x) => x.id === id ? { ...x, cert_type: type } : x))
+
+  const canSubmit = items.length > 0 && company.trim()
+
   const inputStyle = {
-    width: "100%", background: "var(--inner-bg)", border: "1px solid var(--border-input)",
-    color: "var(--text-1)", padding: "11px 14px", borderRadius: "10px",
-    fontSize: "13px", outline: "none", fontFamily: "Inter, Arial, sans-serif", boxSizing: "border-box",
+    background: "var(--inner-bg)", border: "1px solid var(--border-input)",
+    color: "var(--text-1)", padding: "10px 13px", borderRadius: "10px",
+    fontSize: "13px", outline: "none", fontFamily: "Inter, Arial, sans-serif",
   }
 
-  const handleFile = (f) => {
-    if (!f) return
-    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]
-    if (!allowed.includes(f.type)) { alert("Solo se permiten imágenes o PDF"); return }
-    if (f.size > 10 * 1024 * 1024) { alert("Máximo 10 MB"); return }
-    setFile(f)
-  }
-
-  const handleSubmit = () => {
-    onSave({ cert_type: certType, company, amount, notes, file })
-  }
+  const CERT_TYPES = [
+    { key: "cuenta_aprobada", label: "✓ Aprobada", color: "#10b981", bg: "rgba(16,185,129,0.12)" },
+    { key: "retiro",          label: "↑ Retiro",   color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
+  ]
 
   return (
     <div
       style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div style={{ width: "100%", maxWidth: "460px", background: "var(--card-bg)", borderRadius: "20px", border: "1px solid rgba(148,163,184,0.08)", padding: "28px" }}>
+      <div style={{ width: "100%", maxWidth: "580px", background: "var(--card-bg)", borderRadius: "20px", border: "1px solid rgba(148,163,184,0.08)", padding: "28px", maxHeight: "90vh", overflowY: "auto" }}>
+
+        {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "22px" }}>
           <div>
-            <div style={{ fontWeight: "700", fontSize: "16px", color: "var(--text-1)" }}>Subir certificado</div>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>Imagen o PDF · máximo 10 MB</div>
+            <div style={{ fontWeight: "700", fontSize: "16px", color: "var(--text-1)" }}>Subir certificados</div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>
+              Puedes subir varias imágenes a la vez · máx. 10 MB cada una
+            </div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "18px", padding: "4px", lineHeight: 1 }}>✕</button>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {/* Tipo de certificado */}
-          <div>
-            <label style={{ display: "block", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "8px" }}>
-              Tipo de certificado
-            </label>
-            <div style={{ display: "flex", gap: "8px" }}>
-              {[
-                { key: "cuenta_aprobada", label: "✓ Cuenta aprobada", color: "#10b981", bg: "rgba(16,185,129,0.12)" },
-                { key: "retiro",          label: "↑ Retiro",           color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
-              ].map((t) => (
-                <button key={t.key} type="button"
-                  onClick={() => setCertType(t.key)}
-                  style={{
-                    flex: 1, padding: "10px 12px", borderRadius: "10px",
-                    border: certType === t.key ? `1.5px solid ${t.color}` : "1px solid var(--border-input)",
-                    background: certType === t.key ? t.bg : "transparent",
-                    color: certType === t.key ? t.color : "var(--text-muted)",
-                    fontWeight: certType === t.key ? "700" : "500",
-                    fontSize: "12px", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
-                  }}
-                >{t.label}</button>
-              ))}
-            </div>
-          </div>
 
-          {/* Prop firm */}
+          {/* Prop firm (compartida) */}
           <div>
             <label style={{ display: "block", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "6px" }}>
               Prop Firm <span style={{ color: "#f87171" }}>*</span>
             </label>
-            <input list="cert-firms-list" value={company}
+            <input
+              list="cert-firms-list" value={company} autoFocus
               onChange={(e) => setCompany(e.target.value)}
-              placeholder="Buscar prop firm" style={inputStyle} autoFocus />
+              placeholder="Nombre de la prop firm para todos los certificados"
+              style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+            />
             <datalist id="cert-firms-list">
               {PROP_FIRMS.map((pf) => <option key={pf} value={pf} />)}
             </datalist>
           </div>
 
-          {/* Importe (solo para retiro) */}
-          {certType === "retiro" && (
-            <div>
-              <label style={{ display: "block", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "6px" }}>
-                Importe retirado
-              </label>
-              <input type="number" min="0" step="0.01" value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00" style={inputStyle} />
-            </div>
-          )}
-
-          {/* Notas */}
-          <div>
-            <label style={{ display: "block", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "6px" }}>
-              Notas
-            </label>
-            <textarea value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Opcional..." rows={2}
-              style={{ ...inputStyle, resize: "vertical", minHeight: "60px" }} />
-          </div>
-
-          {/* Zona de upload */}
+          {/* Zona drag & drop */}
           <div
             onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
             onDragLeave={() => setDrag(false)}
-            onDrop={(e) => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]) }}
-            onClick={() => document.getElementById("cert-file-input").click()}
+            onDrop={(e) => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files) }}
+            onClick={() => document.getElementById("cert-multi-input").click()}
             style={{
-              border: drag ? "2px dashed #10b981" : file ? "2px solid #10b981" : "2px dashed var(--border-input)",
-              borderRadius: "12px", padding: "24px 16px", textAlign: "center",
+              border: drag ? "2px dashed #10b981" : "2px dashed var(--border-input)",
+              borderRadius: "14px", padding: "28px 16px", textAlign: "center",
               cursor: "pointer", transition: "all 0.15s",
-              background: drag ? "rgba(16,185,129,0.05)" : file ? "rgba(16,185,129,0.04)" : "transparent",
+              background: drag ? "rgba(16,185,129,0.05)" : "transparent",
             }}
           >
-            <input id="cert-file-input" type="file" accept="image/*,.pdf"
-              style={{ display: "none" }} onChange={(e) => handleFile(e.target.files[0])} />
-            {file ? (
-              <div>
-                <div style={{ fontSize: "28px", marginBottom: "6px" }}>
-                  {file.type === "application/pdf" ? "📄" : "🖼️"}
-                </div>
-                <div style={{ fontSize: "13px", fontWeight: "600", color: "#10b981" }}>{file.name}</div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px" }}>
-                  {(file.size / 1024 / 1024).toFixed(1)} MB · click para cambiar
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div style={{ fontSize: "28px", marginBottom: "8px", opacity: 0.4 }}>⬆</div>
-                <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-muted)" }}>Arrastra o haz clic</div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px", opacity: 0.7 }}>
-                  JPG, PNG, PDF · máx. 10 MB
-                </div>
-              </div>
-            )}
+            <input
+              id="cert-multi-input" type="file" accept="image/*,.pdf" multiple
+              style={{ display: "none" }} onChange={(e) => addFiles(e.target.files)}
+            />
+            <div style={{ fontSize: "32px", marginBottom: "10px", opacity: 0.4 }}>⬆</div>
+            <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-muted)" }}>
+              Arrastra aquí o haz clic para seleccionar
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "5px", opacity: 0.7 }}>
+              JPG, PNG, PDF · puedes seleccionar varias a la vez
+            </div>
           </div>
+
+          {/* Lista de imágenes seleccionadas */}
+          {items.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)" }}>
+                {items.length} imagen{items.length !== 1 ? "es" : ""} seleccionada{items.length !== 1 ? "s" : ""}
+              </div>
+              {items.map((item) => {
+                const isPdf = item.file.type === "application/pdf"
+                return (
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: "12px", background: "var(--inner-bg)", borderRadius: "12px", padding: "10px 12px" }}>
+                    {/* Thumbnail */}
+                    <div style={{ width: "52px", height: "52px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, background: "var(--card-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {isPdf
+                        ? <span style={{ fontSize: "24px" }}>📄</span>
+                        : <img src={item.preview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      }
+                    </div>
+                    {/* Nombre */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {item.file.name}
+                      </div>
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
+                        {(item.file.size / 1024 / 1024).toFixed(1)} MB
+                      </div>
+                    </div>
+                    {/* Tipo por imagen */}
+                    <div style={{ display: "flex", gap: "5px", flexShrink: 0 }}>
+                      {CERT_TYPES.map((t) => (
+                        <button key={t.key} type="button"
+                          onClick={() => setType(item.id, t.key)}
+                          style={{
+                            padding: "5px 10px", borderRadius: "8px", border: "none",
+                            background: item.cert_type === t.key ? t.bg : "transparent",
+                            color: item.cert_type === t.key ? t.color : "var(--text-muted)",
+                            fontWeight: item.cert_type === t.key ? "700" : "500",
+                            fontSize: "11px", cursor: "pointer",
+                            outline: item.cert_type === t.key ? `1.5px solid ${t.color}` : "1px solid var(--border-input)",
+                          }}
+                        >{t.label}</button>
+                      ))}
+                    </div>
+                    {/* Eliminar */}
+                    <button
+                      onClick={() => removeItem(item.id)}
+                      style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "16px", padding: "4px", lineHeight: 1, flexShrink: 0 }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171" }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
+                    >✕</button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
           {/* Botones */}
           <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-            <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: "11px", border: "1px solid var(--border-input)", background: "transparent", color: "var(--text-muted)", fontWeight: "600", fontSize: "13px", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif" }}>
+            <button onClick={onClose} style={{ flex: 0, padding: "11px 20px", borderRadius: "11px", border: "1px solid var(--border-input)", background: "transparent", color: "var(--text-muted)", fontWeight: "600", fontSize: "13px", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif" }}>
               Cancelar
             </button>
-            <button onClick={handleSubmit} disabled={uploading || !file || !company}
+            <button
+              onClick={() => onSave({ company, items })}
+              disabled={uploading || !canSubmit}
               style={{
                 flex: 1, padding: "11px", borderRadius: "11px", border: "none",
-                background: uploading || !file || !company ? "rgba(16,185,129,0.4)" : "linear-gradient(135deg,#10b981,#059669)",
+                background: uploading || !canSubmit ? "rgba(16,185,129,0.35)" : "linear-gradient(135deg,#10b981,#059669)",
                 color: "#fff", fontWeight: "700", fontSize: "13px",
-                cursor: uploading || !file || !company ? "not-allowed" : "pointer",
+                cursor: uploading || !canSubmit ? "not-allowed" : "pointer",
                 fontFamily: "Inter, Arial, sans-serif",
               }}
             >
-              {uploading ? "Subiendo..." : "Subir certificado"}
+              {uploading
+                ? "Subiendo..."
+                : canSubmit
+                  ? `Subir ${items.length} certificado${items.length !== 1 ? "s" : ""}`
+                  : "Selecciona imágenes y prop firm"}
             </button>
           </div>
         </div>
@@ -987,27 +1051,29 @@ export function AccountingPanel({ userId }) {
     setLoadingCerts(false)
   }
 
-  async function handleCertUpload({ cert_type, company, amount, notes, file }) {
-    if (!file || !company) return
+  async function handleCertUpload({ company, items }) {
+    if (!items?.length || !company) return
     setUploadingCert(true)
-    const ext = file.name.split(".").pop()
-    const path = `${userId}/${Date.now()}.${ext}`
-    const { error: upErr } = await supabase.storage
-      .from("funding-certificates")
-      .upload(path, file, { contentType: file.type, upsert: false })
-    if (upErr) { alert("Error al subir archivo: " + upErr.message); setUploadingCert(false); return }
-    const { data: { publicUrl } } = supabase.storage
-      .from("funding-certificates")
-      .getPublicUrl(path)
-    await supabase.from("funding_certificates").insert({
-      user_id: userId,
-      company: company.trim(),
-      cert_type,
-      file_url: publicUrl,
-      file_name: file.name,
-      amount: amount ? parseFloat(amount) : null,
-      notes: notes?.trim() || null,
-    })
+    for (const item of items) {
+      const ext = item.file.name.split(".").pop()
+      const path = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from("funding-certificates")
+        .upload(path, item.file, { contentType: item.file.type, upsert: false })
+      if (upErr) { alert(`Error al subir ${item.file.name}: ${upErr.message}`); continue }
+      const { data: { publicUrl } } = supabase.storage
+        .from("funding-certificates")
+        .getPublicUrl(path)
+      await supabase.from("funding_certificates").insert({
+        user_id: userId,
+        company: company.trim(),
+        cert_type: item.cert_type,
+        file_url: publicUrl,
+        file_name: item.file.name,
+        amount: null,
+        notes: null,
+      })
+    }
     await loadCerts()
     setShowCertModal(false)
     setUploadingCert(false)
