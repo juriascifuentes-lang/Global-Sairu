@@ -326,13 +326,14 @@ function MovimientoModal({ form, setForm, onSave, onClose, saving }) {
   )
 }
 
-// ── Certificate upload modal ─────────────────────────────────────
-const defaultCertForm = {
-  company: "", cert_type: "cuenta_aprobada", amount: "", notes: "", file: null,
-}
-
-function CertModal({ form, setForm, onSave, onClose, uploading }) {
-  const [drag, setDrag] = useState(false)
+// ── Certificate upload modal (estado propio para evitar desincronización) ──
+function CertModal({ onSave, onClose, uploading }) {
+  const [certType, setCertType] = useState("cuenta_aprobada")
+  const [company, setCompany]   = useState("")
+  const [amount, setAmount]     = useState("")
+  const [notes, setNotes]       = useState("")
+  const [file, setFile]         = useState(null)
+  const [drag, setDrag]         = useState(false)
 
   const inputStyle = {
     width: "100%", background: "var(--inner-bg)", border: "1px solid var(--border-input)",
@@ -340,12 +341,16 @@ function CertModal({ form, setForm, onSave, onClose, uploading }) {
     fontSize: "13px", outline: "none", fontFamily: "Inter, Arial, sans-serif", boxSizing: "border-box",
   }
 
-  const handleFile = (file) => {
-    if (!file) return
+  const handleFile = (f) => {
+    if (!f) return
     const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"]
-    if (!allowed.includes(file.type)) { alert("Solo se permiten imágenes o PDF"); return }
-    if (file.size > 10 * 1024 * 1024) { alert("Máximo 10 MB"); return }
-    setForm((p) => ({ ...p, file }))
+    if (!allowed.includes(f.type)) { alert("Solo se permiten imágenes o PDF"); return }
+    if (f.size > 10 * 1024 * 1024) { alert("Máximo 10 MB"); return }
+    setFile(f)
+  }
+
+  const handleSubmit = () => {
+    onSave({ cert_type: certType, company, amount, notes, file })
   }
 
   return (
@@ -371,16 +376,16 @@ function CertModal({ form, setForm, onSave, onClose, uploading }) {
             <div style={{ display: "flex", gap: "8px" }}>
               {[
                 { key: "cuenta_aprobada", label: "✓ Cuenta aprobada", color: "#10b981", bg: "rgba(16,185,129,0.12)" },
-                { key: "retiro", label: "↑ Retiro", color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
+                { key: "retiro",          label: "↑ Retiro",           color: "#38bdf8", bg: "rgba(56,189,248,0.12)" },
               ].map((t) => (
                 <button key={t.key} type="button"
-                  onClick={() => setForm((p) => ({ ...p, cert_type: t.key }))}
+                  onClick={() => setCertType(t.key)}
                   style={{
                     flex: 1, padding: "10px 12px", borderRadius: "10px",
-                    border: form.cert_type === t.key ? `1.5px solid ${t.color}` : "1px solid var(--border-input)",
-                    background: form.cert_type === t.key ? t.bg : "transparent",
-                    color: form.cert_type === t.key ? t.color : "var(--text-muted)",
-                    fontWeight: form.cert_type === t.key ? "700" : "500",
+                    border: certType === t.key ? `1.5px solid ${t.color}` : "1px solid var(--border-input)",
+                    background: certType === t.key ? t.bg : "transparent",
+                    color: certType === t.key ? t.color : "var(--text-muted)",
+                    fontWeight: certType === t.key ? "700" : "500",
                     fontSize: "12px", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif",
                   }}
                 >{t.label}</button>
@@ -393,8 +398,8 @@ function CertModal({ form, setForm, onSave, onClose, uploading }) {
             <label style={{ display: "block", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "6px" }}>
               Prop Firm <span style={{ color: "#f87171" }}>*</span>
             </label>
-            <input list="cert-firms-list" value={form.company}
-              onChange={(e) => setForm((p) => ({ ...p, company: e.target.value }))}
+            <input list="cert-firms-list" value={company}
+              onChange={(e) => setCompany(e.target.value)}
               placeholder="Buscar prop firm" style={inputStyle} autoFocus />
             <datalist id="cert-firms-list">
               {PROP_FIRMS.map((pf) => <option key={pf} value={pf} />)}
@@ -402,13 +407,13 @@ function CertModal({ form, setForm, onSave, onClose, uploading }) {
           </div>
 
           {/* Importe (solo para retiro) */}
-          {form.cert_type === "retiro" && (
+          {certType === "retiro" && (
             <div>
               <label style={{ display: "block", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "6px" }}>
                 Importe retirado
               </label>
-              <input type="number" min="0" step="0.01" value={form.amount}
-                onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
+              <input type="number" min="0" step="0.01" value={amount}
+                onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00" style={inputStyle} />
             </div>
           )}
@@ -418,8 +423,8 @@ function CertModal({ form, setForm, onSave, onClose, uploading }) {
             <label style={{ display: "block", fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "6px" }}>
               Notas
             </label>
-            <textarea value={form.notes}
-              onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+            <textarea value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               placeholder="Opcional..." rows={2}
               style={{ ...inputStyle, resize: "vertical", minHeight: "60px" }} />
           </div>
@@ -431,22 +436,22 @@ function CertModal({ form, setForm, onSave, onClose, uploading }) {
             onDrop={(e) => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files[0]) }}
             onClick={() => document.getElementById("cert-file-input").click()}
             style={{
-              border: drag ? "2px dashed #10b981" : form.file ? "2px solid #10b981" : "2px dashed var(--border-input)",
+              border: drag ? "2px dashed #10b981" : file ? "2px solid #10b981" : "2px dashed var(--border-input)",
               borderRadius: "12px", padding: "24px 16px", textAlign: "center",
               cursor: "pointer", transition: "all 0.15s",
-              background: drag ? "rgba(16,185,129,0.05)" : form.file ? "rgba(16,185,129,0.04)" : "transparent",
+              background: drag ? "rgba(16,185,129,0.05)" : file ? "rgba(16,185,129,0.04)" : "transparent",
             }}
           >
             <input id="cert-file-input" type="file" accept="image/*,.pdf"
               style={{ display: "none" }} onChange={(e) => handleFile(e.target.files[0])} />
-            {form.file ? (
+            {file ? (
               <div>
                 <div style={{ fontSize: "28px", marginBottom: "6px" }}>
-                  {form.file.type === "application/pdf" ? "📄" : "🖼️"}
+                  {file.type === "application/pdf" ? "📄" : "🖼️"}
                 </div>
-                <div style={{ fontSize: "13px", fontWeight: "600", color: "#10b981" }}>{form.file.name}</div>
+                <div style={{ fontSize: "13px", fontWeight: "600", color: "#10b981" }}>{file.name}</div>
                 <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px" }}>
-                  {(form.file.size / 1024 / 1024).toFixed(1)} MB · click para cambiar
+                  {(file.size / 1024 / 1024).toFixed(1)} MB · click para cambiar
                 </div>
               </div>
             ) : (
@@ -465,12 +470,12 @@ function CertModal({ form, setForm, onSave, onClose, uploading }) {
             <button onClick={onClose} style={{ flex: 1, padding: "11px", borderRadius: "11px", border: "1px solid var(--border-input)", background: "transparent", color: "var(--text-muted)", fontWeight: "600", fontSize: "13px", cursor: "pointer", fontFamily: "Inter, Arial, sans-serif" }}>
               Cancelar
             </button>
-            <button onClick={onSave} disabled={uploading || !form.file || !form.company}
+            <button onClick={handleSubmit} disabled={uploading || !file || !company}
               style={{
                 flex: 1, padding: "11px", borderRadius: "11px", border: "none",
-                background: uploading || !form.file || !form.company ? "rgba(16,185,129,0.4)" : "linear-gradient(135deg,#10b981,#059669)",
+                background: uploading || !file || !company ? "rgba(16,185,129,0.4)" : "linear-gradient(135deg,#10b981,#059669)",
                 color: "#fff", fontWeight: "700", fontSize: "13px",
-                cursor: uploading || !form.file || !form.company ? "not-allowed" : "pointer",
+                cursor: uploading || !file || !company ? "not-allowed" : "pointer",
                 fontFamily: "Inter, Arial, sans-serif",
               }}
             >
@@ -576,7 +581,7 @@ export function AccountingPanel({ userId }) {
   const [certs, setCerts]           = useState([])
   const [loadingCerts, setLoadingCerts] = useState(false)
   const [showCertModal, setShowCertModal] = useState(false)
-  const [certForm, setCertForm]     = useState(defaultCertForm)
+  // certForm ya no se usa — el modal CertModal maneja su propio estado
   const [uploadingCert, setUploadingCert] = useState(false)
   const [certFilter, setCertFilter] = useState("all") // "all" | "cuenta_aprobada" | "retiro"
 
@@ -659,30 +664,29 @@ export function AccountingPanel({ userId }) {
     setLoadingCerts(false)
   }
 
-  async function handleCertUpload() {
-    if (!certForm.file || !certForm.company) return
+  async function handleCertUpload({ cert_type, company, amount, notes, file }) {
+    if (!file || !company) return
     setUploadingCert(true)
-    const ext = certForm.file.name.split(".").pop()
+    const ext = file.name.split(".").pop()
     const path = `${userId}/${Date.now()}.${ext}`
     const { error: upErr } = await supabase.storage
       .from("funding-certificates")
-      .upload(path, certForm.file, { contentType: certForm.file.type, upsert: false })
+      .upload(path, file, { contentType: file.type, upsert: false })
     if (upErr) { alert("Error al subir archivo: " + upErr.message); setUploadingCert(false); return }
     const { data: { publicUrl } } = supabase.storage
       .from("funding-certificates")
       .getPublicUrl(path)
     await supabase.from("funding_certificates").insert({
       user_id: userId,
-      company: certForm.company.trim(),
-      cert_type: certForm.cert_type,
+      company: company.trim(),
+      cert_type,
       file_url: publicUrl,
-      file_name: certForm.file.name,
-      amount: certForm.amount ? parseFloat(certForm.amount) : null,
-      notes: certForm.notes.trim() || null,
+      file_name: file.name,
+      amount: amount ? parseFloat(amount) : null,
+      notes: notes?.trim() || null,
     })
     await loadCerts()
     setShowCertModal(false)
-    setCertForm(defaultCertForm)
     setUploadingCert(false)
   }
 
@@ -772,7 +776,7 @@ export function AccountingPanel({ userId }) {
         </div>
         {tab === "certificados" ? (
           <button
-            onClick={() => { setCertForm(defaultCertForm); setShowCertModal(true) }}
+            onClick={() => setShowCertModal(true)}
             style={{
               padding: "11px 20px", borderRadius: "12px", border: "none",
               background: "linear-gradient(135deg,#38bdf8,#0284c7)",
@@ -1154,7 +1158,7 @@ export function AccountingPanel({ userId }) {
                 Sube tus certificados de cuentas aprobadas y retiros para tener tu historial completo
               </div>
               <button
-                onClick={() => { setCertForm(defaultCertForm); setShowCertModal(true) }}
+                onClick={() => setShowCertModal(true)}
                 style={{
                   padding: "10px 20px", borderRadius: "11px", border: "none",
                   background: "linear-gradient(135deg,#38bdf8,#0284c7)",
@@ -1189,8 +1193,6 @@ export function AccountingPanel({ userId }) {
       {/* Modal certificado */}
       {showCertModal && (
         <CertModal
-          form={certForm}
-          setForm={setCertForm}
           onSave={handleCertUpload}
           onClose={() => setShowCertModal(false)}
           uploading={uploadingCert}
