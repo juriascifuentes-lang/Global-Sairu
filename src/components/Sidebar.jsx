@@ -183,7 +183,7 @@ const navGroups = [
     colorBg: "rgba(16,185,129,0.11)",
     items: [
       { key: "ACCOUNTS",    label: "Cuentas" },
-      { key: "ACCOUNTING",  label: "Contabilidad" },
+      { key: "ACCOUNTING",  label: "Funding Manager" },
       { key: "STRATEGIES",  label: "Estrategias" },
     ],
   },

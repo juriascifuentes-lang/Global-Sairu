@@ -410,7 +410,7 @@ function App() {
   const mobilePageLabels = {
     DASHBOARD: "Dashboard", TRADES: "Trades", METRICS: "Métricas",
     CALENDAR: "Calendario", STRATEGIES: "Estrategias", IMPORT: "Importar",
-    ACCOUNTS: "Cuentas", ACCOUNTING: "Contabilidad",
+    ACCOUNTS: "Cuentas", ACCOUNTING: "Funding Manager",
     COPY_TRADING: "Copiador", CONNECT_MT5: "Conectar", ADMIN: "Usuarios",
     BACKTESTING: "Backtesting", CHART_REVIEW: "Revisión de Charts",
     REVIEW_COMPARATIVE: "Comparativa",
