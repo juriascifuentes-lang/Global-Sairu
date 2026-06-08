@@ -26,11 +26,7 @@ import { AccountingPanel } from "./components/AccountingPanel"
 import { BacktestingPanel } from "./components/BacktestingPanel"
 import { ChartReviewPanel } from "./components/ChartReviewPanel"
 import { ConfirmModal } from "./components/ConfirmModal"
-import {
-  RecentTradesWidget,
-  AccountROIWidget,
-  LastWithdrawalsWidget,
-} from "./components/DashboardWidgets"
+import { RecentTradesWidget } from "./components/DashboardWidgets"
 
 const SESSIONS_KEY = "gs_saved_sessions"
 
@@ -150,7 +146,10 @@ function App() {
   })
 
   useEffect(() => {
+    // Safety timeout: if Supabase doesn't respond in 8s (paused project, network issue), stop loading
+    const timeout = setTimeout(() => setAuthLoading(false), 8000)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      clearTimeout(timeout)
       if (event === "PASSWORD_RECOVERY") {
         setPasswordRecovery(true)
         setSession(session)
@@ -170,14 +169,16 @@ function App() {
       }
       setAuthLoading(false)
     })
-    return () => subscription.unsubscribe()
+    return () => { clearTimeout(timeout); subscription.unsubscribe() }
   }, [])
 
   useEffect(() => {
     if (!session?.user?.id) return
     setProfileError(false)
+    const timeout = setTimeout(() => setProfileError(true), 10000)
     supabase.from("profiles").select("*").eq("id", session.user.id).single()
       .then(({ data, error }) => {
+        clearTimeout(timeout)
         if (data) {
           setProfile(data)
         } else {
@@ -185,6 +186,7 @@ function App() {
           setProfileError(true)
         }
       })
+    return () => clearTimeout(timeout)
   }, [session?.user?.id])
 
   useEffect(() => {
@@ -407,11 +409,11 @@ function App() {
 
   const mobilePageLabels = {
     DASHBOARD: "Dashboard", TRADES: "Trades", METRICS: "Métricas",
-    CALENDAR: "Calendario", STRATEGIES: "Estrategias", WITHDRAWALS: "Retiros",
-    ROI_ACCOUNTS: "ROI de Cuentas", IMPORT: "Importar", ACCOUNTS: "Cuentas",
+    CALENDAR: "Calendario", STRATEGIES: "Estrategias", IMPORT: "Importar",
+    ACCOUNTS: "Cuentas", ACCOUNTING: "Funding Manager",
     COPY_TRADING: "Copiador", CONNECT_MT5: "Conectar", ADMIN: "Usuarios",
-    BACKTESTING: "Backtesting",
-    CHART_REVIEW: "Revisión de Charts",
+    BACKTESTING: "Backtesting", CHART_REVIEW: "Revisión de Charts",
+    REVIEW_COMPARATIVE: "Comparativa",
   }
 
   const bottomNavItems = [
@@ -502,7 +504,7 @@ function App() {
         {activePage === "CONNECT_MT5" && <ConnectMT5Panel accounts={accounts} userId={userId} onImportTrades={importTrades} />}
 
         {/* ─── CONTABILIDAD ─── */}
-        {activePage === "ACCOUNTING" && session?.user?.email === "juriascifuentes@gmail.com" && (
+        {activePage === "ACCOUNTING" && (
           <AccountingPanel userId={userId} />
         )}
 
@@ -918,11 +920,6 @@ function App() {
                 <RecentTradesWidget trades={dashTrades} onNavigate={setActivePage} showPct={showPct} accountSizeMap={accountSizeMap} />
               </div>
 
-              {/* ── ROI + Retiros ── */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
-                <AccountROIWidget accounts={dashAccounts} withdrawals={dashWithdrawals} onNavigate={setActivePage} />
-                <LastWithdrawalsWidget withdrawals={dashWithdrawals} onNavigate={setActivePage} />
-              </div>
             </>
           )
         })()}
