@@ -410,11 +410,11 @@ function App() {
 
   const mobilePageLabels = {
     DASHBOARD: "Dashboard", TRADES: "Trades", METRICS: "Métricas",
-    CALENDAR: "Calendario", STRATEGIES: "Estrategias", WITHDRAWALS: "Retiros",
-    ROI_ACCOUNTS: "ROI de Cuentas", IMPORT: "Importar", ACCOUNTS: "Cuentas",
+    CALENDAR: "Calendario", STRATEGIES: "Estrategias", IMPORT: "Importar",
+    ACCOUNTS: "Cuentas", ACCOUNTING: "Contabilidad",
     COPY_TRADING: "Copiador", CONNECT_MT5: "Conectar", ADMIN: "Usuarios",
-    BACKTESTING: "Backtesting",
-    CHART_REVIEW: "Revisión de Charts",
+    BACKTESTING: "Backtesting", CHART_REVIEW: "Revisión de Charts",
+    REVIEW_COMPARATIVE: "Comparativa",
   }
 
   const bottomNavItems = [
@@ -505,7 +505,7 @@ function App() {
         {activePage === "CONNECT_MT5" && <ConnectMT5Panel accounts={accounts} userId={userId} onImportTrades={importTrades} />}
 
         {/* ─── CONTABILIDAD ─── */}
-        {activePage === "ACCOUNTING" && session?.user?.email === "juriascifuentes@gmail.com" && (
+        {activePage === "ACCOUNTING" && (
           <AccountingPanel userId={userId} />
         )}
 
@@ -1303,7 +1303,7 @@ function App() {
         })()}
 
         {/* ─── REVIEW: COMPARATIVA ─── */}
-        {activePage === "REVIEW_COMPARATIVE" && (
+        {activePage === "REVIEW_COMPARATIVE" && (profile.is_admin || (profile.level || 1) >= 3) && (
           <ReviewComparative
             trades={trades}
             reviewTrades={reviewTrades}

@@ -166,26 +166,25 @@ const moonIcon = (
 
 const navGroups = [
   {
-    id: "analisis",
-    label: "Análisis",
+    id: "journal",
+    label: "Journal",
     color: "#10b981",
     colorBg: "rgba(16,185,129,0.11)",
     items: [
-      { key: "TRADES",     label: "Trades" },
-      { key: "METRICS",    label: "Métricas" },
-      { key: "CALENDAR",   label: "Calendario" },
-      { key: "STRATEGIES", label: "Estrategias" },
+      { key: "TRADES",   label: "Trades" },
+      { key: "METRICS",  label: "Métricas" },
+      { key: "CALENDAR", label: "Calendario" },
     ],
   },
   {
-    id: "finanzas",
-    label: "Finanzas",
+    id: "cuentas",
+    label: "Cuentas",
     color: "#10b981",
     colorBg: "rgba(16,185,129,0.11)",
     items: [
-      { key: "ACCOUNTS",     label: "Cuentas" },
-      { key: "WITHDRAWALS",  label: "Retiros" },
-      { key: "ROI_ACCOUNTS", label: "ROI de Cuentas" },
+      { key: "ACCOUNTS",    label: "Cuentas" },
+      { key: "ACCOUNTING",  label: "Contabilidad" },
+      { key: "STRATEGIES",  label: "Estrategias" },
     ],
   },
   {
@@ -200,34 +199,27 @@ const navGroups = [
     ],
   },
   {
-    id: "revision",
-    label: "Revisión",
-    color: "#a855f7",
-    colorBg: "rgba(168,85,247,0.11)",
-    items: [
-      { key: "REVIEW_CALENDAR",     label: "Calendario" },
-      { key: "REVIEW_ACCOUNTS",     label: "Cuentas" },
-      { key: "REVIEW_TRADES",       label: "Trades" },
-      { key: "REVIEW_METRICS",      label: "Métricas" },
-      { key: "REVIEW_STRATEGIES",   label: "Estrategias" },
-    ],
-  },
-  {
-    id: "simulacion",
-    label: "Simulación",
-    color: "#f59e0b",
-    colorBg: "rgba(245,158,11,0.11)",
-    items: [
-      { key: "BACKTESTING", label: "Backtesting" },
-    ],
-  },
-  {
     id: "academia",
     label: "Academia",
     color: "#38bdf8",
     colorBg: "rgba(56,189,248,0.11)",
     items: [
-      { key: "CHART_REVIEW", label: "Revisión de Charts" },
+      { key: "CHART_REVIEW",       label: "Revisión de Charts", requireAcademia: true },
+      { key: "BACKTESTING",        label: "Backtesting",        requireLevel3: true },
+      { key: "REVIEW_COMPARATIVE", label: "Comparativa",        requireLevel3: true },
+    ],
+  },
+  {
+    id: "revision",
+    label: "Revisión",
+    color: "#a855f7",
+    colorBg: "rgba(168,85,247,0.11)",
+    items: [
+      { key: "REVIEW_CALENDAR",   label: "Calendario" },
+      { key: "REVIEW_ACCOUNTS",   label: "Cuentas" },
+      { key: "REVIEW_TRADES",     label: "Trades" },
+      { key: "REVIEW_METRICS",    label: "Métricas" },
+      { key: "REVIEW_STRATEGIES", label: "Estrategias" },
     ],
   },
 ]
@@ -621,14 +613,18 @@ export function Sidebar({
   const toggleGroup = (id) => setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }))
 
   const effectiveNavGroups = navGroups
-    .filter((g) => g.id !== "simulacion" || isAdmin || userLevel >= 3)
-    .filter((g) => g.id !== "academia" || isAdmin || hasAcademia)
     .map((g) => {
-      if (g.id === "finanzas" && userEmail === "juriascifuentes@gmail.com") {
-        return { ...g, items: [...g.items, { key: "ACCOUNTING", label: "Contabilidad" }] }
+      if (g.id === "academia") {
+        const visibleItems = g.items.filter((item) => {
+          if (item.requireAcademia) return isAdmin || hasAcademia
+          if (item.requireLevel3) return isAdmin || userLevel >= 3
+          return true
+        })
+        return { ...g, items: visibleItems }
       }
       return g
     })
+    .filter((g) => g.items.length > 0)
 
   const allEffectiveItems = [
     { key: "DASHBOARD", label: "Dashboard" },
@@ -924,39 +920,6 @@ export function Sidebar({
             </div>
           )
         })}
-
-        {/* Comparativa — ítem standalone de Modo Revisión */}
-        {(() => {
-          const isActive = activePage === "REVIEW_COMPARATIVE"
-          return (
-            <div style={{ marginTop: "6px" }}>
-              <div style={{ margin: "8px 0 6px", borderTop: "1px solid rgba(168,85,247,0.2)", position: "relative" }}>
-                <span style={{
-                  position: "absolute", top: "-9px", left: "10px",
-                  background: "var(--sidebar-bg)", padding: "0 6px",
-                  fontSize: "9px", fontWeight: "700", letterSpacing: "0.15em",
-                  color: "#a855f7", textTransform: "uppercase",
-                }}>Modo Revisión</span>
-              </div>
-              <button
-                onClick={() => { onNavigate("REVIEW_COMPARATIVE"); if (isMobile) onClose() }}
-                style={{
-                  width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: "10px", border: "none",
-                  background: isActive ? "rgba(168,85,247,0.11)" : "transparent",
-                  color: isActive ? "#a855f7" : "var(--text-muted)",
-                  cursor: "pointer", fontSize: "13px", fontWeight: isActive ? "600" : "500",
-                  display: "flex", alignItems: "center", gap: "10px",
-                  transition: "background 0.12s, color 0.12s",
-                }}
-                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--nav-hover)" }}
-                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent" }}
-              >
-                <span style={{ flexShrink: 0, opacity: isActive ? 1 : 0.65 }}>{navIcons.REVIEW_COMPARATIVE}</span>
-                Comparativa
-              </button>
-            </div>
-          )
-        })()}
 
       </nav>
 
