@@ -9,7 +9,7 @@ const FIRMS = {
       { size: 100000, label: "$100k" },
       { size: 200000, label: "$200k" },
     ],
-    rules: { f1TargetPct: 0.10, f2TargetPct: 0.05, dailyLimitPct: 0.05, maxDrawdownPct: 0.10, minDays: 4 },
+    rules: { f1TargetPct: 0.10, f2TargetPct: 0.05, dailyLimitPct: 0.05, maxDrawdownPct: 0.10, minDays: 4, trailingDD: false },
   },
   ORION: {
     label: "Orion Fund",
@@ -18,21 +18,35 @@ const FIRMS = {
       { size: 100000, label: "$100k" },
       { size: 200000, label: "$200k" },
     ],
-    rules: { f1TargetPct: 0.08, f2TargetPct: 0.05, dailyLimitPct: 0.05, maxDrawdownPct: 0.10, minDays: 3 },
+    rules: { f1TargetPct: 0.08, f2TargetPct: 0.05, dailyLimitPct: 0.05, maxDrawdownPct: 0.10, minDays: 3, trailingDD: false },
+  },
+  LUCID: {
+    label: "Lucid Trading",
+    accounts: [
+      { size: 50000,  label: "$50k" },
+      { size: 100000, label: "$100k" },
+      { size: 150000, label: "$150k" },
+    ],
+    // Una sola fase. Sin límite diario. Trailing drawdown EOD: el floor sube con el equity máximo
+    rules: { f1TargetPct: 0.06, f2TargetPct: null, dailyLimitPct: null, maxDrawdownPct: 0.04, minDays: 1, trailingDD: true },
   },
 }
 
 // ── Motor de simulación ───────────────────────────────────────────────────────
 function runSimulation(days, config) {
-  const { accountSize, f1TargetPct, f2TargetPct, dailyLimitPct, maxDrawdownPct, minDays, personalRule, pnlUnit, riskMultiplier } = config
+  const { accountSize, f1TargetPct, f2TargetPct, dailyLimitPct, maxDrawdownPct, minDays, personalRule, pnlUnit, riskMultiplier, trailingDD } = config
 
   const f1Target      = accountSize * f1TargetPct
-  const f2Target      = accountSize * f2TargetPct
-  const dailyLimitAbs = accountSize * dailyLimitPct
+  const f2Target      = f2TargetPct != null ? accountSize * f2TargetPct : null
+  const dailyLimitAbs = dailyLimitPct != null ? accountSize * dailyLimitPct : null
   const maxDDabs      = accountSize * maxDrawdownPct
   const personalLimitAbs = accountSize * 0.049
 
   const toUsd = (v) => pnlUnit === "pct" ? (v / 100) * accountSize : v
+
+  // Para trailing DD: floor = highWaterMark - maxDDabs (sube cuando el equity sube)
+  // Para DD estático: floor = -maxDDabs (fijo desde el inicio)
+  const ddFloor = (pnl, hwm) => trailingDD ? (hwm - maxDDabs) : -maxDDabs
 
   const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date))
   const attempts = []
@@ -43,13 +57,14 @@ function runSimulation(days, config) {
 
     // ── F1 ────────────────────────────────────────────────────────────────────
     let pnlF1 = 0, daysF1 = 0, blownF1 = false, blownDetail = "", savedDay = false
+    let hwmF1 = 0 // high water mark EOD para trailing DD
 
     while (i < sorted.length) {
       let pnl = toUsd(sorted[i].pnl) * riskMultiplier
       let actual = pnl
       if (personalRule && pnl < -personalLimitAbs) { actual = -personalLimitAbs; savedDay = true }
 
-      if (actual < -dailyLimitAbs) {
+      if (dailyLimitAbs != null && actual < -dailyLimitAbs) {
         pnlF1 += actual; daysF1++; i++
         blownF1 = true
         blownDetail = `Drawdown diario: $${Math.abs(actual).toFixed(0)} (límite $${dailyLimitAbs.toFixed(0)})`
@@ -57,10 +72,13 @@ function runSimulation(days, config) {
       }
 
       pnlF1 += actual; daysF1++; i++
+      if (pnlF1 > hwmF1) hwmF1 = pnlF1 // actualizar HWM al cierre del día
 
-      if (pnlF1 < -maxDDabs) {
+      if (pnlF1 < ddFloor(pnlF1, hwmF1)) {
         blownF1 = true
-        blownDetail = `Drawdown máx acumulado: $${Math.abs(pnlF1).toFixed(0)} > $${maxDDabs.toFixed(0)}`
+        blownDetail = trailingDD
+          ? `Trailing DD: equity cayó $${Math.abs(pnlF1 - hwmF1).toFixed(0)} desde el máximo ($${maxDDabs.toFixed(0)} permitido)`
+          : `Drawdown máx: $${Math.abs(pnlF1).toFixed(0)} > $${maxDDabs.toFixed(0)}`
         break
       }
 
@@ -86,15 +104,34 @@ function runSimulation(days, config) {
       continue
     }
 
+    // Firma de una sola fase (Lucid): fondeado directo al pasar F1
+    if (f2Target === null) {
+      attempts.push({
+        num: attempts.length + 1,
+        progress: "F1→✓",
+        startDate,
+        endDate: sorted[i - 1]?.date || startDate,
+        days: daysF1,
+        pnlF1, pnlF2: null,
+        pnlAccum: pnlF1,
+        blownPhase: null,
+        result: "FONDEADO",
+        detail: "Objetivo cumplido",
+        savedDay,
+      })
+      continue
+    }
+
     // ── F2 ────────────────────────────────────────────────────────────────────
     let pnlF2 = 0, daysF2 = 0, blownF2 = false
+    let hwmF2 = 0
 
     while (i < sorted.length) {
       let pnl = toUsd(sorted[i].pnl) * riskMultiplier
       let actual = pnl
       if (personalRule && pnl < -personalLimitAbs) { actual = -personalLimitAbs; savedDay = true }
 
-      if (actual < -dailyLimitAbs) {
+      if (dailyLimitAbs != null && actual < -dailyLimitAbs) {
         pnlF2 += actual; daysF2++; i++
         blownF2 = true
         blownDetail = `Drawdown diario en F2: $${Math.abs(actual).toFixed(0)}`
@@ -102,8 +139,9 @@ function runSimulation(days, config) {
       }
 
       pnlF2 += actual; daysF2++; i++
+      if (pnlF2 > hwmF2) hwmF2 = pnlF2
 
-      if (pnlF2 < -maxDDabs) {
+      if (pnlF2 < ddFloor(pnlF2, hwmF2)) {
         blownF2 = true
         blownDetail = `Drawdown máx en F2: $${Math.abs(pnlF2).toFixed(0)}`
         break
@@ -341,8 +379,18 @@ export function BacktestingPanel() {
 
         {/* Resumen de reglas */}
         <div style={{ marginLeft: "auto", fontSize: "12px", color: "var(--text-muted)", lineHeight: "1.8", textAlign: "right" }}>
-          <div>Objetivo F1: <b style={{ color: "var(--text-2)" }}>{fmtUsd(account.size * firm.rules.f1TargetPct)}</b> · F2: <b style={{ color: "var(--text-2)" }}>{fmtUsd(account.size * firm.rules.f2TargetPct)}</b></div>
-          <div>Límite diario: <b style={{ color: "#ef4444" }}>-{(firm.rules.dailyLimitPct * 100).toFixed(0)}%</b> · Máx drawdown: <b style={{ color: "#ef4444" }}>-{(firm.rules.maxDrawdownPct * 100).toFixed(0)}%</b></div>
+          <div>
+            Objetivo F1: <b style={{ color: "var(--text-2)" }}>{fmtUsd(account.size * firm.rules.f1TargetPct)}</b>
+            {firm.rules.f2TargetPct != null && <> · F2: <b style={{ color: "var(--text-2)" }}>{fmtUsd(account.size * firm.rules.f2TargetPct)}</b></>}
+          </div>
+          <div>
+            {firm.rules.dailyLimitPct != null
+              ? <>Límite diario: <b style={{ color: "#ef4444" }}>-{(firm.rules.dailyLimitPct * 100).toFixed(0)}%</b></>
+              : <b style={{ color: "var(--text-muted)" }}>Sin límite diario</b>
+            }
+            {" · "}
+            {firm.rules.trailingDD ? "Trailing" : "Máx"} drawdown: <b style={{ color: "#ef4444" }}>-{(firm.rules.maxDrawdownPct * 100).toFixed(0)}%</b>
+          </div>
         </div>
       </div>
 
