@@ -175,8 +175,10 @@ function App() {
   useEffect(() => {
     if (!session?.user?.id) return
     setProfileError(false)
+    const timeout = setTimeout(() => setProfileError(true), 10000)
     supabase.from("profiles").select("*").eq("id", session.user.id).single()
       .then(({ data, error }) => {
+        clearTimeout(timeout)
         if (data) {
           setProfile(data)
         } else {
@@ -184,6 +186,7 @@ function App() {
           setProfileError(true)
         }
       })
+    return () => clearTimeout(timeout)
   }, [session?.user?.id])
 
   useEffect(() => {
