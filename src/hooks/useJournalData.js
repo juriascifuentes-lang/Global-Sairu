@@ -339,6 +339,17 @@ export function useJournalData(userId, showToast) {
     }
   }
 
+  const updateStrategy = async (updated) => {
+    const backup = strategies.find((s) => s.id === updated.id)
+    setStrategies((prev) => prev.map((s) => s.id === updated.id ? updated : s))
+    const { error } = await supabase.from("strategies").update(fromStrategy(updated, userId)).eq("id", updated.id)
+    if (error) {
+      console.error("[updateStrategy]", error)
+      if (backup) setStrategies((prev) => prev.map((s) => s.id === updated.id ? backup : s))
+      showToast("No se pudo actualizar la estrategia.")
+    }
+  }
+
   return {
     trades, accounts, withdrawals, strategies,
     selectedAccountId, setSelectedAccountId,
@@ -346,6 +357,6 @@ export function useJournalData(userId, showToast) {
     addTrade, deleteTrade, deleteManyTrades, clearAllTrades, importTrades, replaceAccountTrades, appendAccountTrades,
     createAccount, deleteAccount, updateAccount,
     addWithdrawal, deleteWithdrawal,
-    createStrategy, deleteStrategy,
+    createStrategy, deleteStrategy, updateStrategy,
   }
 }

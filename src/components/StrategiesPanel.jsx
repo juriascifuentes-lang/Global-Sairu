@@ -25,9 +25,10 @@ const labelStyle = {
 
 const emptyForm = { name: "", description: "", rules: [""] }
 
-export function StrategiesPanel({ strategies, onCreateStrategy, onDeleteStrategy }) {
+export function StrategiesPanel({ strategies, onCreateStrategy, onDeleteStrategy, onUpdateStrategy }) {
   const [form, setForm] = useState(emptyForm)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
 
   const setRule = (i, val) => {
     const rules = [...form.rules]
@@ -42,12 +43,27 @@ export function StrategiesPanel({ strategies, onCreateStrategy, onDeleteStrategy
     setForm({ ...form, rules: rules.length > 0 ? rules : [""] })
   }
 
-  const handleCreate = () => {
-    if (!form.name.trim()) return
-    const cleanRules = form.rules.filter((r) => r.trim())
-    onCreateStrategy({ ...form, rules: cleanRules })
+  const closeForm = () => {
     setForm(emptyForm)
     setShowForm(false)
+    setEditingId(null)
+  }
+
+  const startEdit = (s) => {
+    setForm({ name: s.name, description: s.description || "", rules: s.rules?.length > 0 ? s.rules : [""] })
+    setEditingId(s.id)
+    setShowForm(true)
+  }
+
+  const handleSave = () => {
+    if (!form.name.trim()) return
+    const cleanRules = form.rules.filter((r) => r.trim())
+    if (editingId != null) {
+      onUpdateStrategy({ id: editingId, ...form, rules: cleanRules })
+    } else {
+      onCreateStrategy({ ...form, rules: cleanRules })
+    }
+    closeForm()
   }
 
   return (
@@ -88,7 +104,9 @@ export function StrategiesPanel({ strategies, onCreateStrategy, onDeleteStrategy
       {/* Form */}
       {showForm && (
         <div style={{ background: "var(--card-bg)", border: "1px solid var(--border-card)", borderRadius: "20px", padding: "24px", maxWidth: "520px" }}>
-          <h3 style={{ margin: "0 0 20px", fontSize: "15px", fontWeight: "700", color: "var(--text-1)" }}>Nueva estrategia</h3>
+          <h3 style={{ margin: "0 0 20px", fontSize: "15px", fontWeight: "700", color: "var(--text-1)" }}>
+            {editingId != null ? "Editar estrategia" : "Nueva estrategia"}
+          </h3>
 
           <div style={{ marginBottom: "14px" }}>
             <label style={labelStyle}>Nombre de la estrategia</label>
@@ -141,7 +159,7 @@ export function StrategiesPanel({ strategies, onCreateStrategy, onDeleteStrategy
 
           <div style={{ display: "flex", gap: "10px" }}>
             <button
-              onClick={handleCreate}
+              onClick={handleSave}
               disabled={!form.name.trim()}
               style={{
                 padding: "12px 20px",
@@ -154,10 +172,10 @@ export function StrategiesPanel({ strategies, onCreateStrategy, onDeleteStrategy
                 cursor: form.name.trim() ? "pointer" : "not-allowed",
               }}
             >
-              Crear estrategia
+              {editingId != null ? "Guardar cambios" : "Crear estrategia"}
             </button>
             <button
-              onClick={() => { setForm(emptyForm); setShowForm(false) }}
+              onClick={closeForm}
               style={{ padding: "12px 20px", borderRadius: "12px", border: "1px solid var(--border-input)", background: "transparent", color: "var(--text-muted)", fontWeight: "600", fontSize: "14px", cursor: "pointer" }}
             >
               Cancelar
@@ -188,13 +206,25 @@ export function StrategiesPanel({ strategies, onCreateStrategy, onDeleteStrategy
                     <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "3px" }}>{s.description}</div>
                   )}
                 </div>
-                <button
-                  onClick={() => onDeleteStrategy(s.id)}
-                  style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "16px", padding: "2px 6px", flexShrink: 0 }}
-                  title="Eliminar"
-                >
-                  ×
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "2px", flexShrink: 0 }}>
+                  <button
+                    onClick={() => startEdit(s)}
+                    style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px 6px", display: "flex" }}
+                    title="Editar"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => onDeleteStrategy(s.id)}
+                    style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "16px", padding: "2px 6px" }}
+                    title="Eliminar"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
 
               {s.rules && s.rules.length > 0 && (

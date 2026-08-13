@@ -225,7 +225,7 @@ function App() {
     addTrade, deleteTrade, deleteManyTrades, clearAllTrades, importTrades, replaceAccountTrades, appendAccountTrades,
     createAccount, deleteAccount, updateAccount,
     addWithdrawal, deleteWithdrawal,
-    createStrategy, deleteStrategy,
+    createStrategy, deleteStrategy, updateStrategy,
   } = useJournalData(userId, showToast)
 
   const {
@@ -235,7 +235,7 @@ function App() {
     clearAllTrades: reviewClearAllTrades, importTrades: reviewImportTrades,
     replaceAccountTrades: reviewReplaceAccountTrades, appendAccountTrades: reviewAppendAccountTrades,
     createAccount: reviewCreateAccount, deleteAccount: reviewDeleteAccount, updateAccount: reviewUpdateAccount,
-    createStrategy: reviewCreateStrategy, deleteStrategy: reviewDeleteStrategy,
+    createStrategy: reviewCreateStrategy, deleteStrategy: reviewDeleteStrategy, updateStrategy: reviewUpdateStrategy,
   } = useReviewData(userId, showToast)
 
   const [reviewForm, setReviewForm] = useState(defaultForm)
@@ -541,6 +541,7 @@ function App() {
             strategies={strategies}
             onCreateStrategy={createStrategy}
             onDeleteStrategy={deleteStrategy}
+            onUpdateStrategy={updateStrategy}
           />
         )}
 
@@ -1310,6 +1311,7 @@ function App() {
             strategies={reviewStrategies}
             onCreateStrategy={reviewCreateStrategy}
             onDeleteStrategy={reviewDeleteStrategy}
+            onUpdateStrategy={reviewUpdateStrategy}
           />
         )}
 

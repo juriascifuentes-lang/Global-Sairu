@@ -265,12 +265,23 @@ export function useReviewData(userId, showToast) {
     }
   }
 
+  const updateStrategy = async (updated) => {
+    const backup = strategies.find((s) => s.id === updated.id)
+    setStrategies((prev) => prev.map((s) => s.id === updated.id ? updated : s))
+    const { error } = await supabase.from("review_strategies").update(fromStrategy(updated, userId)).eq("id", updated.id)
+    if (error) {
+      console.error("[review updateStrategy]", error)
+      if (backup) setStrategies((prev) => prev.map((s) => s.id === updated.id ? backup : s))
+      showToast("No se pudo actualizar la estrategia.")
+    }
+  }
+
   return {
     trades, accounts, strategies,
     selectedAccountId, setSelectedAccountId,
     loadData,
     addTrade, deleteTrade, deleteManyTrades, clearAllTrades, importTrades, replaceAccountTrades, appendAccountTrades,
     createAccount, deleteAccount, updateAccount,
-    createStrategy, deleteStrategy,
+    createStrategy, deleteStrategy, updateStrategy,
   }
 }
