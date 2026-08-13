@@ -203,6 +203,96 @@ function TradeViewModal({ trade, onClose, showPct, accountSizeMap }) {
   )
 }
 
+function MultiSelectDropdown({ label, color, options, selected, onToggle, onClear, open, setOpen, dropdownRef }) {
+  return (
+    <div ref={dropdownRef} style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          ...pillBtn(selected.size > 0, color, `${color}1f`),
+          display: "flex", alignItems: "center", gap: "6px",
+        }}
+      >
+        {label}
+        {selected.size > 0 && (
+          <span style={{
+            background: color, color: "#000", borderRadius: "999px",
+            fontSize: "10px", fontWeight: "800", padding: "1px 6px", lineHeight: 1.4,
+          }}>
+            {selected.size}
+          </span>
+        )}
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div style={{
+          position: "absolute", right: 0, top: "calc(100% + 6px)",
+          background: "var(--card-bg)", border: "1px solid var(--border-input)",
+          borderRadius: "14px", zIndex: 50, minWidth: "180px",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.35)", overflow: "hidden",
+        }}>
+          {selected.size > 0 && (
+            <button
+              onClick={onClear}
+              style={{
+                width: "100%", padding: "10px 14px", background: `${color}14`,
+                border: "none", borderBottom: "1px solid var(--border-input)",
+                color, fontWeight: "700", fontSize: "12px",
+                cursor: "pointer", textAlign: "left", fontFamily: "Inter, Arial, sans-serif",
+              }}
+            >
+              Limpiar filtro ({selected.size})
+            </button>
+          )}
+          <div style={{ maxHeight: "260px", overflowY: "auto" }}>
+            {options.length === 0 ? (
+              <div style={{ padding: "12px 14px", fontSize: "12px", color: "var(--text-muted)" }}>
+                Sin opciones
+              </div>
+            ) : options.map((opt) => {
+              const active = selected.has(opt)
+              return (
+                <button
+                  key={opt}
+                  onClick={() => onToggle(opt)}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", gap: "10px",
+                    padding: "9px 14px", border: "none",
+                    background: active ? `${color}14` : "transparent",
+                    color: active ? color : "var(--text-1)",
+                    fontWeight: active ? "700" : "500", fontSize: "13px",
+                    cursor: "pointer", textAlign: "left", fontFamily: "Inter, Arial, sans-serif",
+                    borderBottom: "1px solid rgba(148,163,184,0.05)",
+                    transition: "background 0.1s",
+                  }}
+                >
+                  <span style={{
+                    width: "14px", height: "14px", borderRadius: "4px", flexShrink: 0,
+                    border: `1.5px solid ${active ? color : "rgba(148,163,184,0.3)"}`,
+                    background: active ? color : "transparent",
+                    display: "grid", placeItems: "center",
+                  }}>
+                    {active && (
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    )}
+                  </span>
+                  {opt}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const ROW_HEIGHT = 58
 
 const gridCols = (showAccountCol, showMaxRR) => {
@@ -437,8 +527,14 @@ export function TradeList({
   const [viewingTrade, setViewingTrade] = useState(null)
   const [selectedSymbols, setSelectedSymbols] = useState(new Set())
   const [symbolDropdownOpen, setSymbolDropdownOpen] = useState(false)
+  const [selectedAccounts, setSelectedAccounts] = useState(new Set())
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false)
+  const [selectedStrategies, setSelectedStrategies] = useState(new Set())
+  const [strategyDropdownOpen, setStrategyDropdownOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const symbolDropdownRef = useRef(null)
+  const accountDropdownRef = useRef(null)
+  const strategyDropdownRef = useRef(null)
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
@@ -459,15 +555,29 @@ export function TradeList({
     [trades]
   )
 
+  const uniqueAccounts = useMemo(() =>
+    [...new Set(trades.map((t) => t.account).filter(Boolean))].sort(),
+    [trades]
+  )
+
+  const uniqueStrategies = useMemo(() =>
+    [...new Set(trades.map((t) => t.strategy).filter(Boolean))].sort(),
+    [trades]
+  )
+
   useEffect(() => {
-    if (!symbolDropdownOpen) return
+    if (!symbolDropdownOpen && !accountDropdownOpen && !strategyDropdownOpen) return
     const handler = (e) => {
       if (symbolDropdownRef.current && !symbolDropdownRef.current.contains(e.target))
         setSymbolDropdownOpen(false)
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(e.target))
+        setAccountDropdownOpen(false)
+      if (strategyDropdownRef.current && !strategyDropdownRef.current.contains(e.target))
+        setStrategyDropdownOpen(false)
     }
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
-  }, [symbolDropdownOpen])
+  }, [symbolDropdownOpen, accountDropdownOpen, strategyDropdownOpen])
 
   const toggleSymbol = (symbol) => {
     setSelectedSymbols((prev) => {
@@ -478,9 +588,29 @@ export function TradeList({
     })
   }
 
+  const toggleAccount = (account) => {
+    setSelectedAccounts((prev) => {
+      const next = new Set(prev)
+      if (next.has(account)) next.delete(account)
+      else next.add(account)
+      return next
+    })
+  }
+
+  const toggleStrategy = (strategy) => {
+    setSelectedStrategies((prev) => {
+      const next = new Set(prev)
+      if (next.has(strategy)) next.delete(strategy)
+      else next.add(strategy)
+      return next
+    })
+  }
+
   const filteredTrades = trades
     .filter((t) => filter === "ALL" || t.type === filter)
     .filter((t) => selectedSymbols.size === 0 || selectedSymbols.has(t.symbol))
+    .filter((t) => selectedAccounts.size === 0 || selectedAccounts.has(t.account))
+    .filter((t) => selectedStrategies.size === 0 || selectedStrategies.has(t.strategy))
     .filter((t) => {
       if (!search) return true
       const q = search.toLowerCase()
@@ -649,6 +779,34 @@ export function TradeList({
               </div>
             )}
           </div>
+
+          {/* Filtro por cuenta */}
+          {showAccountCol && (
+            <MultiSelectDropdown
+              label="Cuenta"
+              color="#60a5fa"
+              options={uniqueAccounts}
+              selected={selectedAccounts}
+              onToggle={toggleAccount}
+              onClear={() => setSelectedAccounts(new Set())}
+              open={accountDropdownOpen}
+              setOpen={setAccountDropdownOpen}
+              dropdownRef={accountDropdownRef}
+            />
+          )}
+
+          {/* Filtro por estrategia */}
+          <MultiSelectDropdown
+            label="Estrategia"
+            color="#a855f7"
+            options={uniqueStrategies}
+            selected={selectedStrategies}
+            onToggle={toggleStrategy}
+            onClear={() => setSelectedStrategies(new Set())}
+            open={strategyDropdownOpen}
+            setOpen={setStrategyDropdownOpen}
+            dropdownRef={strategyDropdownRef}
+          />
         </div>
       </div>
 
