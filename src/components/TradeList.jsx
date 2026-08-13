@@ -644,7 +644,6 @@ export function TradeList({
         background: "var(--card-bg)",
         borderRadius: "20px",
         border: "1px solid rgba(148, 163, 184, 0.08)",
-        overflow: "hidden",
       }}
     >
       {/* Search bar */}
@@ -810,63 +809,6 @@ export function TradeList({
         </div>
       </div>
 
-      {/* Table header */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: gridCols(showAccountCol, showMaxRR),
-          gap: "12px",
-          padding: "10px 22px",
-          borderTop: "1px solid rgba(148, 163, 184, 0.07)",
-          borderBottom: "1px solid rgba(148, 163, 184, 0.07)",
-          color: "var(--text-muted)",
-          fontSize: "10px",
-          fontWeight: "700",
-          textTransform: "uppercase",
-          letterSpacing: "0.12em",
-          alignItems: "center",
-        }}
-      >
-        <div>
-          {(() => {
-            const allSelected = filteredTrades.length > 0 && filteredTrades.every((t) => selectedIds.has(t.id))
-            const someSelected = filteredTrades.some((t) => selectedIds.has(t.id))
-            return (
-              <span
-                onClick={() => {
-                  if (allSelected) setSelectedIds(new Set())
-                  else setSelectedIds(new Set(filteredTrades.map((t) => t.id)))
-                }}
-                style={{
-                  width: "16px", height: "16px", borderRadius: "4px",
-                  border: `1.5px solid ${someSelected ? "#ef4444" : "rgba(148,163,184,0.3)"}`,
-                  background: allSelected ? "#ef4444" : someSelected ? "rgba(239,68,68,0.3)" : "transparent",
-                  display: "grid", placeItems: "center", cursor: "pointer", transition: "all 0.12s",
-                }}
-              >
-                {(allSelected || someSelected) && (
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                    {allSelected
-                      ? <polyline points="20 6 9 17 4 12"/>
-                      : <line x1="5" y1="12" x2="19" y2="12"/>
-                    }
-                  </svg>
-                )}
-              </span>
-            )
-          })()}
-        </div>
-        <div>Fecha</div>
-        <div>Activo</div>
-        <div>Tipo</div>
-        <div>Resultado</div>
-        {showAccountCol && <div>Cuenta</div>}
-        <div>Notas</div>
-        {showMaxRR && <div style={{ color: "#f59e0b" }}>RR Fav</div>}
-        {showMaxRR && <div style={{ color: "#a855f7" }}>RR Máx</div>}
-        <div style={{ textAlign: "right" }}>Acciones</div>
-      </div>
-
       {/* Modal Ver trade */}
       {viewingTrade && (
         <TradeViewModal
@@ -877,20 +819,80 @@ export function TradeList({
         />
       )}
 
-      {/* Virtualized rows */}
-      {filteredTrades.length === 0 ? (
-        <div style={{ color: "var(--text-muted)", textAlign: "center", padding: "48px", fontSize: "13px" }}>
-          No hay trades para mostrar
+      {/* Clipping wrapper: keeps rounded bottom corners without cutting off dropdowns above */}
+      <div style={{ overflow: "hidden", borderRadius: "0 0 20px 20px" }}>
+        {/* Table header */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: gridCols(showAccountCol, showMaxRR),
+            gap: "12px",
+            padding: "10px 22px",
+            borderTop: "1px solid rgba(148, 163, 184, 0.07)",
+            borderBottom: "1px solid rgba(148, 163, 184, 0.07)",
+            color: "var(--text-muted)",
+            fontSize: "10px",
+            fontWeight: "700",
+            textTransform: "uppercase",
+            letterSpacing: "0.12em",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            {(() => {
+              const allSelected = filteredTrades.length > 0 && filteredTrades.every((t) => selectedIds.has(t.id))
+              const someSelected = filteredTrades.some((t) => selectedIds.has(t.id))
+              return (
+                <span
+                  onClick={() => {
+                    if (allSelected) setSelectedIds(new Set())
+                    else setSelectedIds(new Set(filteredTrades.map((t) => t.id)))
+                  }}
+                  style={{
+                    width: "16px", height: "16px", borderRadius: "4px",
+                    border: `1.5px solid ${someSelected ? "#ef4444" : "rgba(148,163,184,0.3)"}`,
+                    background: allSelected ? "#ef4444" : someSelected ? "rgba(239,68,68,0.3)" : "transparent",
+                    display: "grid", placeItems: "center", cursor: "pointer", transition: "all 0.12s",
+                  }}
+                >
+                  {(allSelected || someSelected) && (
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                      {allSelected
+                        ? <polyline points="20 6 9 17 4 12"/>
+                        : <line x1="5" y1="12" x2="19" y2="12"/>
+                      }
+                    </svg>
+                  )}
+                </span>
+              )
+            })()}
+          </div>
+          <div>Fecha</div>
+          <div>Activo</div>
+          <div>Tipo</div>
+          <div>Resultado</div>
+          {showAccountCol && <div>Cuenta</div>}
+          <div>Notas</div>
+          {showMaxRR && <div style={{ color: "#f59e0b" }}>RR Fav</div>}
+          {showMaxRR && <div style={{ color: "#a855f7" }}>RR Máx</div>}
+          <div style={{ textAlign: "right" }}>Acciones</div>
         </div>
-      ) : (
-        <List
-          rowComponent={TradeRow}
-          rowCount={filteredTrades.length}
-          rowHeight={ROW_HEIGHT}
-          rowProps={rowProps}
-          style={{ height: listHeight, outline: "none" }}
-        />
-      )}
+
+        {/* Virtualized rows */}
+        {filteredTrades.length === 0 ? (
+          <div style={{ color: "var(--text-muted)", textAlign: "center", padding: "48px", fontSize: "13px" }}>
+            No hay trades para mostrar
+          </div>
+        ) : (
+          <List
+            rowComponent={TradeRow}
+            rowCount={filteredTrades.length}
+            rowHeight={ROW_HEIGHT}
+            rowProps={rowProps}
+            style={{ height: listHeight, outline: "none" }}
+          />
+        )}
+      </div>
     </div>
   )
 }
