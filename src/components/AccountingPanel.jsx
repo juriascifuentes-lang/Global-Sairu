@@ -43,7 +43,7 @@ const defaultForm = {
 }
 
 // ── Monthly bar chart ────────────────────────────────────────────
-function MonthlyChart({ entries }) {
+function useMonthlyData(entries) {
   const months = useMemo(() => {
     const result = []
     const now = new Date()
@@ -55,13 +55,45 @@ function MonthlyChart({ entries }) {
     return result
   }, [])
 
-  const data = months.map(({ key, label }) => {
+  return useMemo(() => months.map(({ key, label }) => {
     const mes = entries.filter((e) => e.entry_date.startsWith(key))
     const retiros = mes.filter((e) => getEntryTipo(e) === "retiro").reduce((s, e) => s + Number(e.amount), 0)
     const costes  = mes.filter((e) => getEntryTipo(e) === "examen").reduce((s, e) => s + Number(e.amount), 0)
     return { label, retiros, costes }
-  })
+  }), [months, entries])
+}
 
+// ── Totales por mes (a la par de la gráfica) ────────────────────
+function MonthlyTotals({ data }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px", minWidth: "150px" }}>
+      {data.map(({ label, retiros, costes }) => {
+        const neto = retiros - costes
+        return (
+          <div key={label} style={{
+            background: "var(--inner-bg)", borderRadius: "10px",
+            padding: "8px 12px", display: "flex", flexDirection: "column", gap: "3px",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)" }}>
+                {label}
+              </span>
+              <span style={{ fontSize: "12px", fontWeight: "800", color: neto >= 0 ? "#10b981" : "#f87171" }}>
+                {neto >= 0 ? "+" : ""}{fmt(neto)}
+              </span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px" }}>
+              <span style={{ color: "#10b981" }}>+{fmt(retiros)}</span>
+              <span style={{ color: "#f87171" }}>-{fmt(costes)}</span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function MonthlyChart({ data }) {
   const maxVal = Math.max(...data.map((d) => Math.max(d.retiros, d.costes)), 1)
   const W = 600, H = 160
   const PAD = { top: 16, right: 10, bottom: 28, left: 52 }
@@ -1049,6 +1081,7 @@ export function AccountingPanel({ userId }) {
   const [filterProp, setFilterProp] = useState("")
   const [filterTipo, setFilterTipo] = useState("")
   const [selEntries, setSelEntries] = useState(new Set())
+  const monthlyData = useMonthlyData(entries)
 
   // Certificados state
   const [certs, setCerts]           = useState([])
@@ -1389,16 +1422,21 @@ export function AccountingPanel({ userId }) {
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "var(--text-1)" }}>Evolución mensual</h3>
                 <p style={{ margin: "3px 0 0", fontSize: "12px", color: "var(--text-muted)" }}>Comparativa de retiradas vs costes de exámenes</p>
               </div>
-              <MonthlyChart entries={entries} />
-              <div style={{ display: "flex", gap: "16px", marginTop: "12px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <div style={{ width: "10px", height: "10px", borderRadius: "2px", background: "#10b981" }} />
-                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Retiradas</span>
+              <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <MonthlyChart data={monthlyData} />
+                  <div style={{ display: "flex", gap: "16px", marginTop: "12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div style={{ width: "10px", height: "10px", borderRadius: "2px", background: "#10b981" }} />
+                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Retiradas</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div style={{ width: "10px", height: "10px", borderRadius: "2px", background: "#f87171" }} />
+                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Exámenes</span>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <div style={{ width: "10px", height: "10px", borderRadius: "2px", background: "#f87171" }} />
-                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Exámenes</span>
-                </div>
+                <MonthlyTotals data={monthlyData} />
               </div>
             </div>
 
