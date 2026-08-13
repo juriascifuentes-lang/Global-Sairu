@@ -66,7 +66,7 @@ function useMonthlyData(entries) {
 // ── Totales por mes (a la par de la gráfica) ────────────────────
 function MonthlyTotals({ data }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "8px", minWidth: "150px" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px", minWidth: "280px", alignContent: "start" }}>
       {data.map(({ label, retiros, costes }) => {
         const neto = retiros - costes
         return (
@@ -1422,7 +1422,7 @@ export function AccountingPanel({ userId }) {
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "var(--text-1)" }}>Evolución mensual</h3>
                 <p style={{ margin: "3px 0 0", fontSize: "12px", color: "var(--text-muted)" }}>Comparativa de retiradas vs costes de exámenes</p>
               </div>
-              <div style={{ display: "flex", gap: "20px", alignItems: "flex-start" }}>
+              <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <MonthlyChart data={monthlyData} />
                   <div style={{ display: "flex", gap: "16px", marginTop: "12px" }}>
