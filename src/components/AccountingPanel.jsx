@@ -13,6 +13,7 @@ const fmtShort = (n) => {
 const PROP_FIRMS = [
   "Lucid Trading", "Alpha Futures", "Tradeify", "Topstep", "Apex",
   "FTMO", "WSF", "ORION", "The 5%ers", "Funding Pips", "Alpha Capital",
+  "Funded Next", "MFF", "Take Profit Trader",
 ]
 
 const OTHER_CATEGORIES = ["Plataformas", "Suscripciones", "VPS", "Educación", "Otros"]
