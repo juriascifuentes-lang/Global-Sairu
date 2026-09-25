@@ -22,7 +22,7 @@ const mt5Steps = [
   {
     num: "3",
     title: "Permite la URL en MT5",
-    desc: "Herramientas → Opciones → Asesores Expertos → Permitir WebRequest → agrega: https://wvkdvvrbittavgjkezpy.supabase.co",
+    desc: "Herramientas → Opciones → Asesores Expertos → Permitir WebRequest → agrega: https://global-sairu.pages.dev",
   },
   {
     num: "4",

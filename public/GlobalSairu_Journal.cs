@@ -31,6 +31,9 @@ namespace NinjaTrader.NinjaScript.Strategies
         private Dictionary<string, PendingTrade> pending  = new Dictionary<string, PendingTrade>();
         private HashSet<string>                  syncedIds = new HashSet<string>();
 
+        // Token de sync de bajo privilegio (no da acceso a la base de datos)
+        private const string SyncToken = "V9YL_kZ-EZe8D2FmcLN6j-YHyBO4wlPA";
+
         protected override void OnStateChange()
         {
             if (State == State.SetDefaults)
@@ -40,8 +43,7 @@ namespace NinjaTrader.NinjaScript.Strategies
                 Calculate      = Calculate.OnBarClose;
                 IsOverlay      = true;
                 IsAutoScale    = false;
-                SupabaseUrl    = "https://wvkdvvrbittavgjkezpy.supabase.co";
-                SupabaseKey    = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2a2R2dnJiaXR0YXZnamtlenB5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODY3OTAxMiwiZXhwIjoyMDk0MjU1MDEyfQ.5vUm8FSJZTswxlsz7TzEOEy0ScGUu27KrTGNncjta6g";
+                JournalApiUrl  = "https://global-sairu.pages.dev";
                 UserId         = "";
                 JournalAccount = "";
             }
@@ -110,26 +112,23 @@ namespace NinjaTrader.NinjaScript.Strategies
                 long id = Math.Abs(tradeId.GetHashCode());
 
                 string json = "{" +
+                    "\"token\":\"" + SyncToken + "\"," +
                     "\"id\":" + id + "," +
-                    "\"user_id\":\"" + UserId + "\"," +
+                    "\"userId\":\"" + UserId + "\"," +
                     "\"symbol\":\"" + symbol + "\"," +
                     "\"type\":\"" + type + "\"," +
                     "\"profit\":" + profit.ToString(System.Globalization.CultureInfo.InvariantCulture) + "," +
                     "\"date\":\"" + date + "\"," +
-                    "\"open_time\":\"" + openTime + "\"," +
+                    "\"openTime\":\"" + openTime + "\"," +
                     "\"account\":\"" + JournalAccount + "\"," +
-                    "\"note\":\"NinjaTrader | Contratos: " + contracts + "\"," +
-                    "\"entry_images\":[]" +
+                    "\"note\":\"NinjaTrader | Contratos: " + contracts + "\"" +
                     "}";
 
                 using (var client = new WebClient())
                 {
                     client.Encoding = Encoding.UTF8;
-                    client.Headers.Add("apikey", SupabaseKey);
-                    client.Headers.Add("Authorization", "Bearer " + SupabaseKey);
-                    client.Headers.Add("Prefer", "return=minimal");
                     client.Headers.Add("Content-Type", "application/json");
-                    client.UploadString(SupabaseUrl + "/rest/v1/trades", "POST", json);
+                    client.UploadString(JournalApiUrl + "/api/ea/sync-trade", "POST", json);
                 }
                 Print("GlobalSairu Journal: trade enviado — " + symbol + " " + type + " P&L: " + profit);
             }
@@ -141,19 +140,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 
         #region Properties
         [NinjaScriptProperty]
-        [Display(Name = "Supabase URL", Order = 1, GroupName = "GlobalSairu Journal")]
-        public string SupabaseUrl { get; set; }
+        [Display(Name = "Journal API URL", Order = 1, GroupName = "GlobalSairu Journal")]
+        public string JournalApiUrl { get; set; }
 
         [NinjaScriptProperty]
-        [Display(Name = "Supabase Key", Order = 2, GroupName = "GlobalSairu Journal")]
-        public string SupabaseKey { get; set; }
-
-        [NinjaScriptProperty]
-        [Display(Name = "USER_ID (copiar desde el journal)", Order = 3, GroupName = "GlobalSairu Journal")]
+        [Display(Name = "USER_ID (copiar desde el journal)", Order = 2, GroupName = "GlobalSairu Journal")]
         public string UserId { get; set; }
 
         [NinjaScriptProperty]
-        [Display(Name = "JOURNAL_ACCOUNT (nombre exacto)", Order = 4, GroupName = "GlobalSairu Journal")]
+        [Display(Name = "JOURNAL_ACCOUNT (nombre exacto)", Order = 3, GroupName = "GlobalSairu Journal")]
         public string JournalAccount { get; set; }
         #endregion
     }
