@@ -1243,6 +1243,27 @@ export function AccountingPanel({ userId }) {
     return certs.filter((c) => c.cert_type === certFilter)
   }, [certs, certFilter])
 
+  // Agrupa por año → mes (certs ya vienen ordenados por created_at desc)
+  const certGroups = useMemo(() => {
+    const years = []
+    for (const cert of filteredCerts) {
+      const d = new Date(cert.created_at)
+      const year = d.getFullYear()
+      const month = d.getMonth()
+      let y = years[years.length - 1]
+      if (!y || y.year !== year) { y = { year, count: 0, months: [] }; years.push(y) }
+      let m = y.months[y.months.length - 1]
+      if (!m || m.month !== month) {
+        const label = d.toLocaleDateString("es-MX", { month: "long" })
+        m = { month, label: label.charAt(0).toUpperCase() + label.slice(1), certs: [] }
+        y.months.push(m)
+      }
+      m.certs.push(cert)
+      y.count++
+    }
+    return years
+  }, [filteredCerts])
+
   // ── Stats ──────────────────────────────────────────────────────
   const totalRetiros  = entries.filter((e) => getEntryTipo(e) === "retiro").reduce((s, e) => s + Number(e.amount), 0)
   const totalExamenes = entries.filter((e) => getEntryTipo(e) === "examen").reduce((s, e) => s + Number(e.amount), 0)
@@ -1803,13 +1824,36 @@ export function AccountingPanel({ userId }) {
               </button>
             </div>
           ) : (
-            /* Grid de certificados */
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "14px" }}>
-              {filteredCerts.map((cert) => (
-                <CertCard
-                  key={cert.id} cert={cert} onDelete={handleCertDelete}
-                  selected={selCerts.has(cert.id)} onToggle={toggleSelCert}
-                />
+            /* Grid de certificados agrupado por año → mes */
+            <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+              {certGroups.map((y) => (
+                <div key={y.year} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <span style={{ fontSize: "20px", fontWeight: "800", color: "var(--text-1)" }}>{y.year}</span>
+                    <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                      {y.count} certificado{y.count !== 1 ? "s" : ""}
+                    </span>
+                    <div style={{ flex: 1, height: "1px", background: "rgba(148,163,184,0.12)" }} />
+                  </div>
+                  {y.months.map((m) => (
+                    <div key={m.month} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                        <span style={{ fontSize: "13px", fontWeight: "700", color: "#38bdf8", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                          {m.label}
+                        </span>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>· {m.certs.length}</span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "14px" }}>
+                        {m.certs.map((cert) => (
+                          <CertCard
+                            key={cert.id} cert={cert} onDelete={handleCertDelete}
+                            selected={selCerts.has(cert.id)} onToggle={toggleSelCert}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ))}
             </div>
           )}
