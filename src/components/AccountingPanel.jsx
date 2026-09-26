@@ -477,6 +477,10 @@ function ExtraerModal({ userId, onClose, onImported }) {
             file_name: imageFile.name,
             amount: null,
             notes: "Guardado automáticamente desde importación OCR",
+            // Fecha del retiro más reciente del screenshot, no la de subida
+            created_at: inputToCertDate(
+              rows.filter((r) => r.entry_type === "retiro").map((r) => r.entry_date).sort().pop()
+            ),
           })
         }
       } catch (_) { /* no bloquear si falla el cert */ }
@@ -786,8 +790,20 @@ function ExtraerModal({ userId, onClose, onImported }) {
 }
 
 // ── Certificate upload modal (estado propio para evitar desincronización) ──
+// La fecha del certificado se guarda en created_at (no hay columna aparte).
+// Se fija a mediodía local para que la zona horaria no la mueva de día/mes.
+const certDateToInput = (ts) => {
+  const d = new Date(ts)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+const inputToCertDate = (ymd) => {
+  const [y, m, d] = ymd.split("-").map(Number)
+  return new Date(y, m - 1, d, 12).toISOString()
+}
+const todayInput = () => certDateToInput(new Date())
+
 function CertModal({ onSave, onClose, uploading }) {
-  // items: [{ id, file, preview, cert_type }]
+  // items: [{ id, file, preview, cert_type, date }]
   const [items, setItems]       = useState([])
   const [company, setCompany]   = useState("")
   const [drag, setDrag]         = useState(false)
@@ -804,7 +820,7 @@ function CertModal({ onSave, onClose, uploading }) {
       const id = `${Date.now()}-${Math.random()}`
       const reader = new FileReader()
       reader.onload = (e) => {
-        setItems((prev) => [...prev, { id, file: f, preview: e.target.result, cert_type: "cuenta_aprobada" }])
+        setItems((prev) => [...prev, { id, file: f, preview: e.target.result, cert_type: "cuenta_aprobada", date: todayInput() }])
       }
       reader.readAsDataURL(f)
     })
@@ -812,8 +828,9 @@ function CertModal({ onSave, onClose, uploading }) {
 
   const removeItem = (id) => setItems((prev) => prev.filter((x) => x.id !== id))
   const setType = (id, type) => setItems((prev) => prev.map((x) => x.id === id ? { ...x, cert_type: type } : x))
+  const setDate = (id, date) => setItems((prev) => prev.map((x) => x.id === id ? { ...x, date } : x))
 
-  const canSubmit = items.length > 0 && company.trim()
+  const canSubmit = items.length > 0 && company.trim() && items.every((x) => x.date)
 
   const inputStyle = {
     background: "var(--inner-bg)", border: "1px solid var(--border-input)",
@@ -910,8 +927,16 @@ function CertModal({ onSave, onClose, uploading }) {
                       <div style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {item.file.name}
                       </div>
-                      <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
-                        {(item.file.size / 1024 / 1024).toFixed(1)} MB
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
+                        <input
+                          type="date" value={item.date} max={todayInput()}
+                          onChange={(e) => setDate(item.id, e.target.value)}
+                          title="Fecha del certificado"
+                          style={{ ...inputStyle, padding: "3px 6px", fontSize: "11px", borderRadius: "6px" }}
+                        />
+                        <span style={{ fontSize: "10px", color: "var(--text-muted)" }}>
+                          {(item.file.size / 1024 / 1024).toFixed(1)} MB
+                        </span>
                       </div>
                     </div>
                     {/* Tipo por imagen */}
@@ -973,8 +998,9 @@ function CertModal({ onSave, onClose, uploading }) {
 }
 
 // ── Certificate gallery ──────────────────────────────────────────
-function CertCard({ cert, onDelete, selected, onToggle }) {
+function CertCard({ cert, onDelete, onDateChange, selected, onToggle }) {
   const [hovered, setHovered] = useState(false)
+  const [editingDate, setEditingDate] = useState(false)
   const isPdf = cert.file_name?.toLowerCase().endsWith(".pdf")
   const isAprobada = cert.cert_type === "cuenta_aprobada"
   const typeColor = isAprobada ? "#10b981" : "#38bdf8"
@@ -1059,9 +1085,39 @@ function CertCard({ cert, onDelete, selected, onToggle }) {
         {cert.notes && (
           <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>{cert.notes}</div>
         )}
-        <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "6px", opacity: 0.6 }}>
-          {new Date(cert.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
-        </div>
+        {editingDate ? (
+          <input
+            type="date" autoFocus
+            defaultValue={certDateToInput(cert.created_at)} max={todayInput()}
+            onBlur={(e) => {
+              const v = e.target.value
+              if (v && v !== certDateToInput(cert.created_at) && Number(v.slice(0, 4)) >= 2000) onDateChange(cert, v)
+              setEditingDate(false)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur()
+              if (e.key === "Escape") { e.currentTarget.value = certDateToInput(cert.created_at); e.currentTarget.blur() }
+            }}
+            style={{
+              marginTop: "6px", background: "var(--inner-bg)", border: "1px solid var(--border-input)",
+              color: "var(--text-1)", padding: "3px 6px", borderRadius: "6px", fontSize: "11px",
+              outline: "none", fontFamily: "Inter, Arial, sans-serif",
+            }}
+          />
+        ) : (
+          <div
+            onClick={() => setEditingDate(true)}
+            title="Cambiar fecha del certificado"
+            style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "10px", color: "var(--text-muted)", marginTop: "6px", opacity: hovered ? 1 : 0.6, cursor: "pointer" }}
+          >
+            {new Date(cert.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
+            {hovered && (
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1093,6 +1149,7 @@ export function AccountingPanel({ userId }) {
   const [showExtraer, setShowExtraer]     = useState(false)
   const [certFilter, setCertFilter] = useState("all") // "all" | "cuenta_aprobada" | "retiro"
   const [selCerts, setSelCerts] = useState(new Set())
+  const [bulkCertDate, setBulkCertDate] = useState("")
   const toggleSelCert = (id) => setSelCerts((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   useEffect(() => { if (userId) load() }, [userId])
@@ -1208,6 +1265,7 @@ export function AccountingPanel({ userId }) {
         file_name: item.file.name,
         amount: null,
         notes: null,
+        created_at: inputToCertDate(item.date),
       })
     }
     await loadCerts()
@@ -1223,6 +1281,23 @@ export function AccountingPanel({ userId }) {
     await supabase.from("funding_certificates").delete().eq("id", cert.id)
     setCerts((prev) => prev.filter((c) => c.id !== cert.id))
     setSelCerts((p) => { const n = new Set(p); n.delete(cert.id); return n })
+  }
+
+  async function handleCertDateChange(cert, ymd) {
+    await updateCertDates([cert.id], ymd)
+  }
+
+  async function handleBulkCertDate(ymd) {
+    if (selCerts.size === 0 || !ymd) return
+    await updateCertDates([...selCerts], ymd)
+    setSelCerts(new Set())
+  }
+
+  async function updateCertDates(ids, ymd) {
+    const created_at = inputToCertDate(ymd)
+    const { error } = await supabase.from("funding_certificates").update({ created_at }).in("id", ids)
+    if (error) { alert(`Error al cambiar la fecha: ${error.message}`); return }
+    setCerts((prev) => prev.map((c) => ids.includes(c.id) ? { ...c, created_at } : c))
   }
 
   async function handleBulkCertDelete() {
@@ -1243,10 +1318,11 @@ export function AccountingPanel({ userId }) {
     return certs.filter((c) => c.cert_type === certFilter)
   }, [certs, certFilter])
 
-  // Agrupa por año → mes (certs ya vienen ordenados por created_at desc)
+  // Agrupa por año → mes. Se reordena aquí porque editar la fecha cambia el orden sin recargar.
   const certGroups = useMemo(() => {
     const years = []
-    for (const cert of filteredCerts) {
+    const sorted = [...filteredCerts].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    for (const cert of sorted) {
       const d = new Date(cert.created_at)
       const year = d.getFullYear()
       const month = d.getMonth()
@@ -1771,7 +1847,33 @@ export function AccountingPanel({ userId }) {
                 {f.label}
               </button>
             ))}
-            <div style={{ marginLeft: "auto", display: "flex", gap: "8px", alignItems: "center" }}>
+            <div style={{ marginLeft: "auto", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+              {selCerts.size > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <input
+                    type="date" value={bulkCertDate} max={todayInput()}
+                    onChange={(e) => setBulkCertDate(e.target.value)}
+                    title="Nueva fecha para los certificados seleccionados"
+                    style={{
+                      background: "var(--inner-bg)", border: "1px solid var(--border-input)",
+                      color: "var(--text-1)", padding: "5px 8px", borderRadius: "10px", fontSize: "12px",
+                      outline: "none", fontFamily: "Inter, Arial, sans-serif",
+                    }}
+                  />
+                  <button
+                    onClick={async () => { await handleBulkCertDate(bulkCertDate); setBulkCertDate("") }}
+                    disabled={!bulkCertDate}
+                    style={{
+                      padding: "7px 14px", borderRadius: "10px", border: "none",
+                      background: "rgba(56,189,248,0.15)", color: "#38bdf8",
+                      fontWeight: "700", fontSize: "12px", cursor: bulkCertDate ? "pointer" : "not-allowed",
+                      opacity: bulkCertDate ? 1 : 0.5, fontFamily: "Inter, Arial, sans-serif",
+                    }}
+                  >
+                    Cambiar fecha ({selCerts.size})
+                  </button>
+                </div>
+              )}
               {selCerts.size > 0 && (
                 <button
                   onClick={handleBulkCertDelete}
@@ -1846,7 +1948,7 @@ export function AccountingPanel({ userId }) {
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "14px" }}>
                         {m.certs.map((cert) => (
                           <CertCard
-                            key={cert.id} cert={cert} onDelete={handleCertDelete}
+                            key={cert.id} cert={cert} onDelete={handleCertDelete} onDateChange={handleCertDateChange}
                             selected={selCerts.has(cert.id)} onToggle={toggleSelCert}
                           />
                         ))}
