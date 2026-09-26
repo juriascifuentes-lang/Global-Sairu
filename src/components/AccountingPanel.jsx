@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { supabase } from "../lib/supabase"
 
 const fmt = (n) =>
@@ -1006,8 +1006,91 @@ function CertModal({ onSave, onClose, uploading }) {
   )
 }
 
+// ── Visor de certificados (Esc / ✕ cierra, ← → navega) ───────────
+function CertLightbox({ certs, index, onIndex, onClose }) {
+  const cert = certs[index]
+  const hasPrev = index > 0
+  const hasNext = index < certs.length - 1
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose()
+      if (e.key === "ArrowLeft" && hasPrev) onIndex(index - 1)
+      if (e.key === "ArrowRight" && hasNext) onIndex(index + 1)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [index, hasPrev, hasNext, onIndex, onClose])
+
+  if (!cert) return null
+  const isPdf = cert.file_name?.toLowerCase().endsWith(".pdf")
+
+  const roundBtn = {
+    background: "rgba(255,255,255,0.1)", border: "none", color: "#fff",
+    borderRadius: "50%", width: "38px", height: "38px",
+    cursor: "pointer", fontSize: "16px", display: "grid", placeItems: "center",
+    textDecoration: "none",
+  }
+  const arrow = (side) => ({
+    ...roundBtn, position: "absolute", top: "50%", [side]: "20px",
+    transform: "translateY(-50%)", width: "46px", height: "46px", fontSize: "22px",
+  })
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 2000,
+        background: "rgba(0,0,0,0.92)",
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        padding: "70px 80px 30px", cursor: "zoom-out",
+      }}
+    >
+      {/* Barra superior: info + acciones */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ position: "absolute", top: "16px", left: "22px", right: "22px", display: "flex", alignItems: "center", gap: "12px", cursor: "default" }}
+      >
+        <div style={{ flex: 1, minWidth: 0, color: "#fff" }}>
+          <div style={{ fontSize: "15px", fontWeight: "700" }}>{cert.company}</div>
+          <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)" }}>
+            {cert.cert_type === "retiro" ? "Retiro" : "Cuenta aprobada"} · {new Date(cert.created_at).toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" })} · {index + 1} de {certs.length}
+          </div>
+        </div>
+        <a href={certDownloadUrl(cert)} title="Descargar" style={roundBtn}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </a>
+        <button onClick={onClose} title="Cerrar (Esc)" style={roundBtn}>✕</button>
+      </div>
+
+      {isPdf ? (
+        <iframe
+          src={cert.file_url} title={cert.file_name}
+          onClick={(e) => e.stopPropagation()}
+          style={{ width: "100%", maxWidth: "900px", height: "100%", border: "none", borderRadius: "10px", background: "#fff" }}
+        />
+      ) : (
+        <img
+          src={cert.file_url} alt={cert.company}
+          onClick={(e) => e.stopPropagation()}
+          style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: "10px", boxShadow: "0 24px 80px rgba(0,0,0,0.6)", cursor: "default" }}
+        />
+      )}
+
+      {hasPrev && (
+        <button onClick={(e) => { e.stopPropagation(); onIndex(index - 1) }} title="Anterior (←)" style={arrow("left")}>‹</button>
+      )}
+      {hasNext && (
+        <button onClick={(e) => { e.stopPropagation(); onIndex(index + 1) }} title="Siguiente (→)" style={arrow("right")}>›</button>
+      )}
+    </div>
+  )
+}
+
 // ── Certificate gallery ──────────────────────────────────────────
-function CertCard({ cert, onDelete, onDateChange, selected, onToggle }) {
+function CertCard({ cert, onDelete, onDateChange, onOpen, selected, onToggle }) {
   const [hovered, setHovered] = useState(false)
   const [editingDate, setEditingDate] = useState(false)
   const isPdf = cert.file_name?.toLowerCase().endsWith(".pdf")
@@ -1048,7 +1131,7 @@ function CertCard({ cert, onDelete, onDateChange, selected, onToggle }) {
       </div>
       {/* Thumbnail / preview */}
       <div
-        onClick={() => window.open(cert.file_url, "_blank")}
+        onClick={() => onOpen(cert)}
         style={{
           height: "160px", background: "var(--inner-bg)", display: "flex",
           alignItems: "center", justifyContent: "center", cursor: "pointer",
@@ -1173,6 +1256,7 @@ export function AccountingPanel({ userId }) {
   const [certFilter, setCertFilter] = useState("all") // "all" | "cuenta_aprobada" | "retiro"
   const [selCerts, setSelCerts] = useState(new Set())
   const [bulkCertDate, setBulkCertDate] = useState("")
+  const [viewCertIdx, setViewCertIdx] = useState(null)
   const toggleSelCert = (id) => setSelCerts((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   useEffect(() => { if (userId) load() }, [userId])
@@ -1376,6 +1460,14 @@ export function AccountingPanel({ userId }) {
     }
     return years
   }, [filteredCerts])
+
+  // Mismo orden que se ve en pantalla, para navegar con ← → en el visor
+  const orderedCerts = useMemo(
+    () => certGroups.flatMap((y) => y.months.flatMap((m) => m.certs)),
+    [certGroups]
+  )
+  const openCert = useCallback((cert) => setViewCertIdx(orderedCerts.findIndex((c) => c.id === cert.id)), [orderedCerts])
+  const closeCert = useCallback(() => setViewCertIdx(null), [])
 
   // ── Stats ──────────────────────────────────────────────────────
   const totalRetiros  = entries.filter((e) => getEntryTipo(e) === "retiro").reduce((s, e) => s + Number(e.amount), 0)
@@ -2001,7 +2093,7 @@ export function AccountingPanel({ userId }) {
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "14px" }}>
                         {m.certs.map((cert) => (
                           <CertCard
-                            key={cert.id} cert={cert} onDelete={handleCertDelete} onDateChange={handleCertDateChange}
+                            key={cert.id} cert={cert} onDelete={handleCertDelete} onDateChange={handleCertDateChange} onOpen={openCert}
                             selected={selCerts.has(cert.id)} onToggle={toggleSelCert}
                           />
                         ))}
@@ -2032,6 +2124,14 @@ export function AccountingPanel({ userId }) {
           onSave={handleCertUpload}
           onClose={() => setShowCertModal(false)}
           uploading={uploadingCert}
+        />
+      )}
+
+      {/* Visor de certificado */}
+      {viewCertIdx !== null && (
+        <CertLightbox
+          certs={orderedCerts} index={viewCertIdx}
+          onIndex={setViewCertIdx} onClose={closeCert}
         />
       )}
 
