@@ -802,6 +802,15 @@ const inputToCertDate = (ymd) => {
 }
 const todayInput = () => certDateToInput(new Date())
 
+// Supabase Storage fuerza la descarga (Content-Disposition) con ?download=<nombre>;
+// <a download> no sirve porque el archivo está en otro dominio.
+const certDownloadUrl = (cert) => {
+  const ext = (cert.file_name?.split(".").pop() || cert.file_url.split(".").pop() || "png").toLowerCase()
+  const tipo = cert.cert_type === "retiro" ? "retiro" : "aprobada"
+  const name = `${cert.company}-${tipo}-${certDateToInput(cert.created_at)}.${ext}`.replace(/[^\w.-]+/g, "_")
+  return `${cert.file_url}?download=${encodeURIComponent(name)}`
+}
+
 function CertModal({ onSave, onClose, uploading }) {
   // items: [{ id, file, preview, cert_type, date }]
   const [items, setItems]       = useState([])
@@ -1063,8 +1072,21 @@ function CertCard({ cert, onDelete, onDateChange, selected, onToggle }) {
       <div style={{ padding: "12px 14px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
           <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-1)" }}>{cert.company}</div>
+          <div style={{ display: "flex", gap: "6px" }}>
+          <a
+            href={certDownloadUrl(cert)}
+            title="Descargar"
+            style={{ color: "var(--text-muted)", padding: "2px", lineHeight: 1, display: "inline-flex" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#38bdf8" }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </a>
           <button
             onClick={() => onDelete(cert)}
+            title="Eliminar"
             style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "2px", lineHeight: 1, fontSize: "12px" }}
             onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171" }}
             onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)" }}
@@ -1073,6 +1095,7 @@ function CertCard({ cert, onDelete, onDateChange, selected, onToggle }) {
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
             </svg>
           </button>
+          </div>
         </div>
         <span style={{ fontSize: "10px", fontWeight: "700", padding: "3px 8px", borderRadius: "5px", background: typeBg, color: typeColor }}>
           {typeLabel}
@@ -1298,6 +1321,20 @@ export function AccountingPanel({ userId }) {
     const { error } = await supabase.from("funding_certificates").update({ created_at }).in("id", ids)
     if (error) { alert(`Error al cambiar la fecha: ${error.message}`); return }
     setCerts((prev) => prev.map((c) => ids.includes(c.id) ? { ...c, created_at } : c))
+  }
+
+  // Descarga una por una con pausa: el navegador bloquea ráfagas de descargas
+  // (Chrome pide permiso "descargar varios archivos" la primera vez).
+  async function handleBulkCertDownload() {
+    const toDownload = certs.filter((c) => selCerts.has(c.id))
+    for (const cert of toDownload) {
+      const a = document.createElement("a")
+      a.href = certDownloadUrl(cert)
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      await new Promise((r) => setTimeout(r, 400))
+    }
   }
 
   async function handleBulkCertDelete() {
@@ -1873,6 +1910,22 @@ export function AccountingPanel({ userId }) {
                     Cambiar fecha ({selCerts.size})
                   </button>
                 </div>
+              )}
+              {selCerts.size > 0 && (
+                <button
+                  onClick={handleBulkCertDownload}
+                  style={{
+                    padding: "7px 14px", borderRadius: "10px", border: "none",
+                    background: "rgba(16,185,129,0.15)", color: "#10b981",
+                    fontWeight: "700", fontSize: "12px", cursor: "pointer",
+                    fontFamily: "Inter, Arial, sans-serif", display: "flex", alignItems: "center", gap: "5px",
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Descargar {selCerts.size}
+                </button>
               )}
               {selCerts.size > 0 && (
                 <button
