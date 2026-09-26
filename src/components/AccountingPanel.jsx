@@ -804,12 +804,12 @@ const todayInput = () => certDateToInput(new Date())
 
 // Supabase Storage fuerza la descarga (Content-Disposition) con ?download=<nombre>;
 // <a download> no sirve porque el archivo está en otro dominio.
-const certDownloadUrl = (cert) => {
+const certFileName = (cert) => {
   const ext = (cert.file_name?.split(".").pop() || cert.file_url.split(".").pop() || "png").toLowerCase()
   const tipo = cert.cert_type === "retiro" ? "retiro" : "aprobada"
-  const name = `${cert.company}-${tipo}-${certDateToInput(cert.created_at)}.${ext}`.replace(/[^\w.-]+/g, "_")
-  return `${cert.file_url}?download=${encodeURIComponent(name)}`
+  return `${cert.company}-${tipo}-${certDateToInput(cert.created_at)}.${ext}`.replace(/[^\w.-]+/g, "_")
 }
+const certDownloadUrl = (cert) => `${cert.file_url}?download=${encodeURIComponent(certFileName(cert))}`
 
 function CertModal({ onSave, onClose, uploading }) {
   // items: [{ id, file, preview, cert_type, date }]
@@ -1257,6 +1257,7 @@ export function AccountingPanel({ userId }) {
   const [selCerts, setSelCerts] = useState(new Set())
   const [bulkCertDate, setBulkCertDate] = useState("")
   const [viewCertIdx, setViewCertIdx] = useState(null)
+  const [zipping, setZipping] = useState(false)
   const toggleSelCert = (id) => setSelCerts((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   useEffect(() => { if (userId) load() }, [userId])
@@ -1407,17 +1408,40 @@ export function AccountingPanel({ userId }) {
     setCerts((prev) => prev.map((c) => ids.includes(c.id) ? { ...c, created_at } : c))
   }
 
-  // Descarga una por una con pausa: el navegador bloquea ráfagas de descargas
-  // (Chrome pide permiso "descargar varios archivos" la primera vez).
+  // Varios enlaces seguidos a otro dominio se cancelan entre sí (solo baja uno),
+  // así que se descargan con fetch y se entregan en un solo .zip.
   async function handleBulkCertDownload() {
     const toDownload = certs.filter((c) => selCerts.has(c.id))
-    for (const cert of toDownload) {
+    if (toDownload.length === 0) return
+    setZipping(true)
+    try {
+      const { zipSync } = await import("fflate")
+      const files = {}
+      const failed = []
+      await Promise.all(toDownload.map(async (cert) => {
+        try {
+          const res = await fetch(cert.file_url)
+          if (!res.ok) throw new Error(res.status)
+          const data = new Uint8Array(await res.arrayBuffer())
+          // Evita pisar archivos con misma empresa/tipo/fecha (-2, -3, ...)
+          const base = certFileName(cert)
+          let name = base
+          for (let n = 2; files[name]; n++) name = base.replace(/(\.\w+)$/, `-${n}$1`)
+          files[name] = [data, { level: 0 }]
+        } catch { failed.push(cert.company) }
+      }))
+      if (Object.keys(files).length === 0) { alert("No se pudo descargar ningún certificado."); return }
+      const blob = new Blob([zipSync(files)], { type: "application/zip" })
       const a = document.createElement("a")
-      a.href = certDownloadUrl(cert)
+      a.href = URL.createObjectURL(blob)
+      a.download = `certificados-${todayInput()}.zip`
       document.body.appendChild(a)
       a.click()
       a.remove()
-      await new Promise((r) => setTimeout(r, 400))
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000)
+      if (failed.length) alert(`No se pudieron descargar ${failed.length}: ${failed.join(", ")}`)
+    } finally {
+      setZipping(false)
     }
   }
 
@@ -2006,17 +2030,19 @@ export function AccountingPanel({ userId }) {
               {selCerts.size > 0 && (
                 <button
                   onClick={handleBulkCertDownload}
+                  disabled={zipping}
                   style={{
                     padding: "7px 14px", borderRadius: "10px", border: "none",
                     background: "rgba(16,185,129,0.15)", color: "#10b981",
-                    fontWeight: "700", fontSize: "12px", cursor: "pointer",
+                    fontWeight: "700", fontSize: "12px", cursor: zipping ? "wait" : "pointer",
+                    opacity: zipping ? 0.6 : 1,
                     fontFamily: "Inter, Arial, sans-serif", display: "flex", alignItems: "center", gap: "5px",
                   }}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
                   </svg>
-                  Descargar {selCerts.size}
+                  {zipping ? "Preparando zip..." : `Descargar ${selCerts.size}`}
                 </button>
               )}
               {selCerts.size > 0 && (
