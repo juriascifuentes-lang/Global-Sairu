@@ -64,6 +64,78 @@ function useMonthlyData(entries) {
   }), [months, entries])
 }
 
+// ── Desglose mensual por empresa (tab Empresas) ─────────────────
+const MonthAmounts = ({ retiros, costes }) => (
+  <>
+    <div style={{ fontSize: "12px", fontWeight: "700", color: retiros ? "#10b981" : "var(--text-muted)" }}>{retiros ? `+${fmt(retiros)}` : "—"}</div>
+    <div style={{ fontSize: "11px", fontWeight: "600", color: costes ? "#f87171" : "var(--text-muted)", marginTop: "2px" }}>{costes ? `-${fmt(costes)}` : "—"}</div>
+  </>
+)
+
+function CompanyMonthlyTable({ entries, companies }) {
+  const rows = useMemo(() => {
+    const map = {}
+    entries.forEach((e) => {
+      if (!e.company || !e.entry_date) return
+      const tipo = getEntryTipo(e)
+      if (tipo === "gasto") return
+      const key = e.entry_date.slice(0, 7)
+      if (!map[key]) map[key] = {}
+      if (!map[key][e.company]) map[key][e.company] = { retiros: 0, costes: 0 }
+      map[key][e.company][tipo === "retiro" ? "retiros" : "costes"] += Number(e.amount)
+    })
+    return Object.keys(map).sort().reverse().map((key) => {
+      const [y, m] = key.split("-").map(Number)
+      const label = new Date(y, m - 1, 1).toLocaleDateString("es-MX", { month: "long", year: "numeric" })
+      const byCompany = map[key]
+      const retiros = Object.values(byCompany).reduce((s, c) => s + c.retiros, 0)
+      const costes  = Object.values(byCompany).reduce((s, c) => s + c.costes, 0)
+      return { key, label, byCompany, retiros, costes, neto: retiros - costes }
+    })
+  }, [entries])
+
+  if (rows.length === 0) return null
+
+  const th = { padding: "12px 14px", fontSize: "10px", fontWeight: "700", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", textAlign: "right", whiteSpace: "nowrap" }
+  const td = { padding: "10px 14px", textAlign: "right", whiteSpace: "nowrap", borderTop: "1px solid rgba(148,163,184,0.06)" }
+
+  return (
+    <div style={{ background: "var(--card-bg)", borderRadius: "16px", border: "1px solid rgba(148,163,184,0.08)", overflow: "hidden" }}>
+      <div style={{ padding: "20px 24px 14px" }}>
+        <div style={{ fontSize: "10px", fontWeight: "700", letterSpacing: "0.12em", color: "var(--text-muted)", textTransform: "uppercase" }}>Por mes</div>
+        <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-1)", marginTop: "4px" }}>Invertido y retirado por empresa</div>
+        <div style={{ fontSize: "12px", color: "var(--text-muted)", marginTop: "2px" }}>
+          <span style={{ color: "#10b981" }}>Verde</span> = retirado · <span style={{ color: "#f87171" }}>Rojo</span> = invertido en exámenes
+        </div>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, Arial, sans-serif" }}>
+          <thead>
+            <tr style={{ background: "var(--inner-bg)" }}>
+              <th style={{ ...th, textAlign: "left", position: "sticky", left: 0, background: "var(--inner-bg)" }}>Mes</th>
+              {companies.map((c) => <th key={c} style={th}>{c}</th>)}
+              <th style={th}>Neto del mes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.key}>
+                <td style={{ ...td, textAlign: "left", fontSize: "13px", fontWeight: "600", color: "var(--text-1)", textTransform: "capitalize", position: "sticky", left: 0, background: "var(--card-bg)" }}>{r.label}</td>
+                {companies.map((c) => (
+                  <td key={c} style={td}><MonthAmounts {...(r.byCompany[c] || { retiros: 0, costes: 0 })} /></td>
+                ))}
+                <td style={{ ...td, fontSize: "13px", fontWeight: "800", color: r.neto >= 0 ? "#10b981" : "#f87171" }}>
+                  {r.neto >= 0 ? "+" : "-"}{fmt(Math.abs(r.neto))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 // ── Totales por mes (a la par de la gráfica) ────────────────────
 function MonthlyTotals({ data }) {
   return (
@@ -1930,6 +2002,7 @@ export function AccountingPanel({ userId }) {
 
       ) : tab === "empresas" ? (
         /* ── Tab Empresas ── */
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "14px" }}>
           {propRanking.length === 0 ? (
             <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px", color: "var(--text-muted)", fontSize: "13px" }}>
@@ -1972,6 +2045,8 @@ export function AccountingPanel({ userId }) {
               </div>
             </div>
           ))}
+        </div>
+        <CompanyMonthlyTable entries={entries} companies={propRanking.map((p) => p.name)} />
         </div>
 
       ) : (
