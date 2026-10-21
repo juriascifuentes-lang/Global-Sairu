@@ -94,7 +94,7 @@ export function Statistics({ trades, showPct = false, baseCapital = 0, accountSi
       label: "Mayor Ganancia",
       value: fmtVal(
         trades.length ? Math.max(...trades.map((t) => Number(t.profit || 0))) : 0,
-        () => trades.length ? Math.max(...trades.map(tradePct)) : 0
+        () => trades.length ? Math.max(...trades.map(getTradePct)) : 0
       ),
       sub: "Mejor trade individual",
       color: "#10b981",
@@ -104,7 +104,7 @@ export function Statistics({ trades, showPct = false, baseCapital = 0, accountSi
       label: "Mayor Pérdida",
       value: fmtVal(
         trades.length ? Math.min(...trades.map((t) => Number(t.profit || 0))) : 0,
-        () => trades.length ? Math.min(...trades.map(tradePct)) : 0
+        () => trades.length ? Math.min(...trades.map(getTradePct)) : 0
       ),
       sub: "Peor trade individual",
       color: "#f87171",

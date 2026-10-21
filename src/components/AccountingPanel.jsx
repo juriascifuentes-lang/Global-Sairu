@@ -1988,7 +1988,7 @@ export function AccountingPanel({ userId }) {
                 key={f.key}
                 onClick={() => setCertFilter(f.key)}
                 style={{
-                  padding: "7px 16px", borderRadius: "10px", border: "none",
+                  padding: "7px 16px", borderRadius: "10px",
                   background: certFilter === f.key ? (f.color ? `${f.color}22` : "var(--card-bg)") : "var(--inner-bg)",
                   color: certFilter === f.key ? (f.color || "var(--text-1)") : "var(--text-muted)",
                   fontWeight: certFilter === f.key ? "700" : "500", fontSize: "12px",
